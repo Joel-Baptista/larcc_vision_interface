@@ -1,0 +1,20 @@
+
+output_directory: '/home/joelbaptista/catkin_ws/src/larcc_vision_interface/hand_detection/cfg/'
+
+topics:
+  - "/camera/depth/camera_info"
+  - "/camera/depth/image"
+  - "/camera/depth/image_raw"
+  - "/camera/depth/image_raw/compressedDepth"
+  - "/camera/depth/image_rect"
+  - "/camera/depth/image_rect_raw"
+  - "/camera/depth/points"
+  - "/camera/ir/camera_info"
+  - "/camera/ir/image_raw"
+  - "/camera/projector/camera_info"
+  - "/camera/rgb/image_color"
+  - "/camera/rgb/image_mono"
+  - "/camera/rgb/image_raw"
+
+
+
