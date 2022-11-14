@@ -9,29 +9,44 @@ from hand_detection.src.pose_detection import PoseDetection
 
 dataset_path = "/Datasets/HANDS_dataset"
 
-subject = 2
+subject = 3
 gesture = 1
-
-subject_path = f"/Subject{subject}/Subject{subject}/G{gesture}/"
-
-res = os.listdir(ROOT_DIR + dataset_path + subject_path)
 
 # full_path = "/home/joel/Imagens/hands3.jpg"
 pd = PoseDetection()
 
-for file in res:
+for subject in range(1, 6):
+    for gesture in range(1, 4):
 
-    im = cv2.imread(ROOT_DIR + dataset_path + subject_path + file)
+        print(f"Processing gesture {gesture} from user {subject}")
 
-    pd.cv_image = im
-    pd.detect_pose()
-    pd.find_hands()
+        subject_path = f"/Subject{subject}/Subject{subject}/G{gesture}/"
+        res = os.listdir(ROOT_DIR + dataset_path + subject_path)
+        saving_path = f"/Subject{subject}/Processed/G{gesture}/"
 
-    cv2.imshow('Original Images', im)
-    cv2.imshow('Left Hand', pd.cv_image_detected_left)
-    cv2.imshow('Right Hand', pd.cv_image_detected_right)
+        print(f"There is {len(res)} images to process")
+        last_checkpoint = 0.0
 
-    key = cv2.waitKey(500)
+        for i, file in enumerate(res):
 
-    if key == 113:
-        break
+            if i / len(res) > last_checkpoint:
+                print(str(round(last_checkpoint * 100, 1)) + "%")
+                last_checkpoint += 0.1
+
+            im = cv2.imread(ROOT_DIR + dataset_path + subject_path + file)
+
+            pd.cv_image = im
+            pd.detect_pose()
+            pd.find_hands()
+
+            cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_left.png", pd.cv_image_detected_left)
+            cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_right.png", pd.cv_image_detected_right)
+
+            # cv2.imshow('Original Images', im)
+            # cv2.imshow('Left Hand', pd.cv_image_detected_left)
+            # cv2.imshow('Right Hand', pd.cv_image_detected_right)
+            #
+            # key = cv2.waitKey(500)
+            #
+            # if key == 113:
+            #     break
