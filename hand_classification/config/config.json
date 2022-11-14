@@ -1,0 +1,5 @@
+{
+  "subjects": ["Subject1", "Subject2", "Subject3", "Subject4", "Subject5"],
+  "gestures": ["G1", "G2", "G3"],
+  "classification": {"G1":  "give", "G2": "stop", "G3": "start"}
+}
