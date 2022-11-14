@@ -1,0 +1,10 @@
+<launch>
+
+   <arg name="list_of_topics" file="$(find hand_detection)/cfg/rosbag_config.txt"/>
+
+   <node
+     pkg="rosbag"
+     name="record"
+     type="record"
+     args="$(arg list_of_topics)" />
+</launch>
