@@ -2,8 +2,9 @@
 import os
 import cv2
 from keras.applications.mobilenet_v3 import MobileNetV3Small, preprocess_input
-from keras import Input, layers, optimizers, losses, metrics
+from keras import Input, layers, optimizers, losses, metrics, callbacks
 import keras
+from keras.layers import Dense
 from vision_config.vision_definitions import ROOT_DIR
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +15,9 @@ x_data = []
 y_data = []
 
 print("Reading data")
-for subject in range(1, 4):
+for subject in range(1, 6):
+    if subject == 4:
+        continue
     for gesture in range(1, 4):
 
         data_path = f"/Subject{subject}/Processed/G{gesture}/"
@@ -27,10 +30,10 @@ for subject in range(1, 4):
             im_array = np.asarray(im)
 
             x_data.append(im_array)
-
-            label = [0, 0, 0]
-            label[gesture-1] = 1
-
+            #
+            # label = [0, 0, 0]
+            # label[gesture - 1] = 1
+            label = gesture - 1
             y_data.append(label)
 
 
@@ -41,30 +44,33 @@ base_model = keras.applications.MobileNetV3Small(
     include_top=False
 )
 
-base_model.trainable = False
+callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+
+base_model.trainable = True
 
 inputs = keras.Input(shape=(100, 100, 3))
 
 x = base_model(inputs, training=False)
 x = keras.layers.GlobalAveragePooling2D()(x)
 
-outputs = keras.layers.Dense(3)(x)
+outputs = keras.layers.Dense(units=3, activation='softmax')(x)
 
 model = keras.Model(inputs, outputs)
 
 model.compile(optimizer=keras.optimizers.Adam(),
-              loss=keras.losses.BinaryCrossentropy(from_logits=True),
+              loss=keras.losses.SparseCategoricalCrossentropy(),
               metrics=['accuracy'])
 
 
+model.summary()
 input("Train model?")
 fit_history = model.fit(
     x=np.array(x_data),
     y=np.array(y_data),
     batch_size=50,
-    epochs=10,
+    epochs=50,
     verbose=2,
-    callbacks=None,
+    callbacks=[callback],
     validation_split=0.2,
     validation_data=None,
     shuffle=True,

@@ -42,7 +42,7 @@ class HandDetectionNode:
 
 if __name__ == '__main__':
 
-    rospy.init_node("action_intreperter", anonymous=True)
+    rospy.init_node("hand_detection", anonymous=True)
     hd = HandDetectionNode()
     try:
         rospy.spin()
