@@ -30,6 +30,21 @@ class GetRosbagImages:
                 cv2.imwrite(path + f"/image{count}.png", frame)
                 print(f"Saved image{count}")
                 count += 1
+            elif key == 49:
+                frame = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+                cv2.imwrite(path + f"/image{count}_gesture1.png", frame)
+                print(f"Saved image{count}_gesture1")
+                count += 1
+            elif key == 50:
+                frame = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+                cv2.imwrite(path + f"/image{count}_gesture1.png", frame)
+                print(f"Saved image{count}_gesture2")
+                count += 1
+            elif key == 51:
+                frame = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+                cv2.imwrite(path + f"/image{count}_gesture1.png", frame)
+                print(f"Saved image{count}_gesture3")
+                count += 1
 
             if key == 113:
                 break
@@ -41,6 +56,6 @@ class GetRosbagImages:
 if __name__ == '__main__':
     rospy.init_node("rosbag_snapshot", anonymous=True)
 
-    path = ROOT_DIR + "/Datasets/Joel"
+    path = ROOT_DIR + "/Datasets/Joel_v2"
 
     gri = GetRosbagImages(path=path)

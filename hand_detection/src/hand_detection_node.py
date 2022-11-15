@@ -11,6 +11,8 @@ from pose_detection import PoseDetection
 class HandDetectionNode:
     def __init__(self):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
+        self.pub_right = rospy.Publisher("/hand/right", Image, queue_size=10)
+        self.pub_left = rospy.Publisher("/hand/left", Image, queue_size=10)
 
         self.bridge = CvBridge()
         self.cv_image = None
@@ -26,15 +28,19 @@ class HandDetectionNode:
             self.pd.detect_pose()
             self.pd.find_hands()
 
-            cv2.imshow('Original Images', cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB))
-            # print(self.pd.cv_image_detected_left)
-            cv2.imshow('Left Hand',  cv2.cvtColor(self.pd.cv_image_detected_left, cv2.COLOR_BGR2RGB))
-            cv2.imshow('Right Hand',  cv2.cvtColor(self.pd.cv_image_detected_right, cv2.COLOR_BGR2RGB))
+            self.pub_left.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_left, "rgb8"))
+            self.pub_right.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_right, "rgb8"))
 
-            key = cv2.waitKey(1)
+            # cv2.imshow('Original Images', cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB))
+            # # print(self.pd.cv_image_detected_left)
+            # cv2.imshow('Left Hand',  cv2.cvtColor(self.pd.cv_image_detected_left, cv2.COLOR_BGR2RGB))
+            # cv2.imshow('Right Hand',  cv2.cvtColor(self.pd.cv_image_detected_right, cv2.COLOR_BGR2RGB))
 
-            if key == 113:
-                break
+            #
+            # key = cv2.waitKey(1)
+            #
+            # if key == 113:
+            #     break
 
     def image_callback(self, msg):
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
