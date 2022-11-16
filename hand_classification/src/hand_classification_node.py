@@ -25,7 +25,7 @@ class HandClassificationNode:
         font = 0.5
         gestures = ['one finger', 'open hand', 'fist']
 
-        self.model = keras.models.load_model(path + "myModel")
+        self.model = keras.models.load_model(path + "myModel_first")
 
         while True:
             if self.left_hand is not None and self.right_hand is not None:

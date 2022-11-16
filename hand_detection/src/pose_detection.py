@@ -27,7 +27,7 @@ class PoseDetection:
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.mp_pose = mp.solutions.pose
-        self.pose= self.mp_pose.Pose(static_image_mode=True,
+        self.pose = self.mp_pose.Pose(static_image_mode=False,
                                      model_complexity=2,
                                      enable_segmentation=True,
                                      min_detection_confidence=0.5)

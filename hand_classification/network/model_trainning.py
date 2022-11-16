@@ -14,10 +14,12 @@ dataset_path = ROOT_DIR + "/Datasets/HANDS_dataset"
 x_data = []
 y_data = []
 
+count = [0, 0, 0]
 print("Reading data")
 for subject in range(1, 6):
     if subject == 4:
         continue
+    print(f"Adding subject {subject}")
     for gesture in range(1, 4):
 
         data_path = f"/Subject{subject}/Processed/G{gesture}/"
@@ -25,6 +27,7 @@ for subject in range(1, 6):
 
         for file in res:
 
+            count[gesture - 1] += 1
             im = cv2.imread(dataset_path + data_path + file)
 
             im_array = np.asarray(im)
@@ -61,7 +64,7 @@ model.compile(optimizer=keras.optimizers.Adam(),
               loss=keras.losses.SparseCategoricalCrossentropy(),
               metrics=['accuracy'])
 
-
+print(f"Training was done with {sum(count)}\n{count[0]} gesture 1\n{count[1]} gesture 2\n{count[2]} gesture 3")
 model.summary()
 input("Train model?")
 fit_history = model.fit(
@@ -86,7 +89,7 @@ fit_history = model.fit(
     use_multiprocessing=False
 )
 
-
+print(f"Training was done with {sum(count)}\n{count[0]} gesture 1\n{count[1]} gesture 2\n{count[2]} gesture 3")
 fig = plt.figure()
 
 plt.subplot(1, 2, 1)
