@@ -29,7 +29,7 @@ class PoseDetection:
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(static_image_mode=False,
                                      model_complexity=2,
-                                     enable_segmentation=True,
+                                     enable_segmentation=False,
                                      min_detection_confidence=0.5)
 
     def detect_pose(self):
@@ -49,6 +49,8 @@ class PoseDetection:
             self.results.pose_landmarks,
             self.mp_pose.POSE_CONNECTIONS,
             landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+
+
 
     def find_hands(self):
 
@@ -89,6 +91,15 @@ class PoseDetection:
 
             self.cv_image_detected_right = self.cv_image[r_c[1]-self.y_lim:r_c[1]+self.y_lim,
                                            r_c[0]-self.x_lim:r_c[0]+self.x_lim]
+
+            left_start_point = (l_c[0]-self.x_lim, l_c[1]-self.y_lim)
+            left_end_point = (l_c[0]+self.x_lim, l_c[1]+self.y_lim)
+
+            right_start_point = (r_c[0]-self.x_lim, r_c[1]-self.y_lim)
+            right_end_point = (r_c[0]+self.x_lim, r_c[1]+self.y_lim)
+
+            cv2.rectangle(self.cv_image_detected, left_start_point, left_end_point, (255, 0, 0), 2)
+            cv2.rectangle(self.cv_image_detected, right_start_point, right_end_point, (255, 0, 0), 2)
 
         if len(self.cv_image_detected_left) == 0:
             self.cv_image_detected_left = np.zeros((100, 100, 3), np.uint8)

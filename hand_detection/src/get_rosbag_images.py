@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import os
 
 import rospy
@@ -6,6 +7,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 from vision_config.vision_definitions import ROOT_DIR
+from pose_detection import PoseDetection
 
 
 class GetRosbagImages:
@@ -17,16 +19,22 @@ class GetRosbagImages:
         res = os.listdir(path)
         count = len(res)
 
+        pd = PoseDetection()
+
         while self.cv_image is None:
             pass
 
         while True:
-            cv2.imshow('Original Images', cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB))
+            pd.cv_image = copy.deepcopy(self.cv_image)
+            pd.detect_pose()
+            pd.find_hands()
+
+            cv2.imshow('Original Images', cv2.cvtColor(pd.cv_image_detected, cv2.COLOR_BGR2RGB))
 
             key = cv2.waitKey(1)
 
             if key == 13:
-                frame = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB)
+                frame = cv2.cvtColor(pd.cv_image_detected, cv2.COLOR_BGR2RGB)
                 cv2.imwrite(path + f"/image{count}.png", frame)
                 print(f"Saved image{count}")
                 count += 1

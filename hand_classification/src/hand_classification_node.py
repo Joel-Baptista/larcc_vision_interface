@@ -41,7 +41,7 @@ class HandClassificationNode:
             st = time.time()
 
             if left_frame.shape != (100, 100, 3) or right_frame.shape != (100, 100, 3):
-                break
+                continue
 
             im_array = np.asarray([left_frame, right_frame])
 
@@ -49,10 +49,10 @@ class HandClassificationNode:
             # print(prediction)
 
             left_frame = cv2.putText(left_frame, gestures[np.argmax(prediction[0])], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                font, (255, 0, 0), thickness, cv2.LINE_AA)
+                                font, (0, 0, 255), thickness, cv2.LINE_AA)
 
             right_frame = cv2.putText(right_frame, gestures[np.argmax(prediction[1])], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                font, (255, 0, 0), thickness, cv2.LINE_AA)
+                                font, (0, 0, 255), thickness, cv2.LINE_AA)
 
             cv2.imshow('Left Hand Classifier', left_frame)
             cv2.imshow('Right Hand Classifier', right_frame)

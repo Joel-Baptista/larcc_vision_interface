@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="hand_detection" name="hand_detection_node" type="hand_detection_node.py" />
+    <node pkg="hand_classification" name="hand_classification_node" type="hand_classification_node.py" />
+</launch>

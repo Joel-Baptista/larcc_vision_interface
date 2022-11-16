@@ -24,23 +24,22 @@ class HandDetectionNode:
                 break
 
         while True:
-            self.pd.cv_image = self.cv_image
+            self.pd.cv_image = copy.deepcopy(self.cv_image)
             self.pd.detect_pose()
             self.pd.find_hands()
 
             self.pub_left.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_left, "rgb8"))
             self.pub_right.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_right, "rgb8"))
 
-            # cv2.imshow('Original Images', cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2RGB))
+            cv2.imshow('Original Image', cv2.cvtColor(self.pd.cv_image_detected, cv2.COLOR_BGR2RGB))
             # # print(self.pd.cv_image_detected_left)
             # cv2.imshow('Left Hand',  cv2.cvtColor(self.pd.cv_image_detected_left, cv2.COLOR_BGR2RGB))
             # cv2.imshow('Right Hand',  cv2.cvtColor(self.pd.cv_image_detected_right, cv2.COLOR_BGR2RGB))
 
-            #
-            # key = cv2.waitKey(1)
-            #
-            # if key == 113:
-            #     break
+            key = cv2.waitKey(1)
+
+            if key == 113:
+                break
 
     def image_callback(self, msg):
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
