@@ -22,7 +22,7 @@ for subject in range(1, 6):
     print(f"Adding subject {subject}")
     for gesture in range(1, 4):
 
-        data_path = f"/Subject{subject}/Processed/G{gesture}/"
+        data_path = f"/Subject{subject}/Processed/G{gesture}/output/"
         res = os.listdir(dataset_path + data_path)
 
         for file in res:
@@ -49,7 +49,7 @@ base_model = keras.applications.MobileNetV3Small(
 
 callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
-base_model.trainable = True
+base_model.trainable = False
 
 inputs = keras.Input(shape=(100, 100, 3))
 
@@ -110,4 +110,4 @@ plt.legend(['train', 'val'], loc='upper left')
 
 plt.show()
 
-model.save("myModel")
+model.save("myModel_augmented")
