@@ -58,18 +58,24 @@ def plot_confusion_matrix_percentage(confusion_matrix, display_labels=None, cmap
     plt.setp(ax.get_xticklabels(), rotation=xticks_rotation)
 
 
-
-
-subject = 1
-gesture = 3
-
-# dataset_path = ROOT_DIR + "/Datasets/HANDS_dataset"
-# data_path = f"/Subject{subject}/Processed/G{gesture}/"
-
 dataset_path = ROOT_DIR + "/Datasets/Joel_v2/Processed/"
 data_path = f""
 
-model = keras.models.load_model("myModel_second")
+models = ["mobnetsmall",
+          "mobnetlarge",
+          "mobnet",
+          "resnet",
+          "vgg16"]
+
+index = 3
+frozen = True
+
+model_name = models[index]
+
+if frozen:
+    model_name += "_frozen"
+
+model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
 count_false = 0
 count_true = 0
 
@@ -83,15 +89,6 @@ for gesture in range(1, 4):
     true_value = 0
     for file in res:
         im = cv2.imread(dataset_path + f"G{gesture}/" + file)
-        # pd = PoseDetection()
-        #
-        # pd.cv_image = im
-        # pd.detect_pose()
-        # pd.find_hands()
-
-        # cv2.imshow('Left Hand', pd.cv_image_detected_left)
-        # cv2.imshow('Right Hand', pd.cv_image_detected_right)
-
         im_array = np.asarray([im])
 
         prediction = model.predict(x=im_array, verbose=2)
