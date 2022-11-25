@@ -44,12 +44,14 @@ for subject in range(1, 6):
 
             cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_left.png", left_hand)
             cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_right.png", right_hand)
+            # cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_complete.png", pd.cv_image_detected)
 
+            # cv2.imshow('Detected Images', pd.cv_image_detected)
             # cv2.imshow('Original Images', im)
             # cv2.imshow('Left Hand', pd.cv_image_detected_left)
             # cv2.imshow('Right Hand', pd.cv_image_detected_right)
-            #
-            # key = cv2.waitKey(500)
-            #
-            # if key == 113:
-            #     break
+
+            key = cv2.waitKey()
+
+            if key == 113:
+                break
