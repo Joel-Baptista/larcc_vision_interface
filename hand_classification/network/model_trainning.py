@@ -108,8 +108,8 @@ if __name__ == '__main__':
               "resnet",
               "vgg16"]
 
-    indexes = [0, 1, 2, 4]
-    train_all_comb = [True, True, True, False]
+    indexes = [2]
+    train_all_comb = [True]
 
     i = 0
     for index in indexes:
