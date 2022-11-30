@@ -28,8 +28,9 @@ class HandDetectionNode:
             self.pd.detect_pose()
             self.pd.find_hands()
 
-            self.pub_left.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_left, "rgb8"))
-            self.pub_right.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_right, "rgb8"))
+            if (self.pd.cv_image_detected_left is not None) and (self.pd.cv_image_detected_right is not None):
+                self.pub_left.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_left, "rgb8"))
+                self.pub_right.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_right, "rgb8"))
 
             cv2.imshow('Original Image', cv2.cvtColor(self.pd.cv_image_detected, cv2.COLOR_BGR2RGB))
             # # print(self.pd.cv_image_detected_left)

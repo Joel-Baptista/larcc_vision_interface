@@ -53,8 +53,6 @@ class PoseDetection:
             self.mp_pose.POSE_CONNECTIONS,
             landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
 
-
-
     def find_hands(self):
 
         x_left_points = []
@@ -119,6 +117,8 @@ class PoseDetection:
             cv2.rectangle(self.cv_image_detected, right_start_point, right_end_point, (255, 0, 0), 2)
 
         if len(self.cv_image_detected_left) == 0:
-            self.cv_image_detected_left = np.zeros((100, 100, 3), np.uint8)
+            # self.cv_image_detected_left = np.zeros((100, 100, 3), np.uint8)
+            self.cv_image_detected_left = None
         if len(self.cv_image_detected_right) == 0:
-            self.cv_image_detected_right = np.zeros((100, 100, 3), np.uint8)
+            # self.cv_image_detected_right = np.zeros((100, 100, 3), np.uint8)
+            self.cv_image_detected_right = None
