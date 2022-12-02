@@ -34,9 +34,12 @@ f.close()
 
 pd = PoseDetection(static_image_mode=True)
 
-if os.path.exists("/home/joelbaptista/Desktop/Hands_Dataset"):
+raw_dataset_path = "/home/joel/Desktop/Dataset"
+# raw_dataset_path = "/home/joelbaptista/Desktop/Hands_Dataset"
+
+if os.path.exists(raw_dataset_path):
     for subject in range(1, subjects + 1):
-        res = os.listdir(f"/home/joelbaptista/Desktop/Hands_Dataset/Subject{subject}")
+        res = os.listdir(raw_dataset_path + f"/Subject{subject}")
 
         print(f"There is {len(res)} images to process")
         last_checkpoint = 0.0
@@ -56,11 +59,12 @@ if os.path.exists("/home/joelbaptista/Desktop/Hands_Dataset"):
 
                     saving_path = f"/Subject{subject}/hand_segmented/{G}/"
 
-                    im = cv2.imread(f"/home/joelbaptista/Desktop/Hands_Dataset/Subject{subject}/{file}")
+                    im = cv2.imread(raw_dataset_path + f"/Subject{subject}/{file}")
 
                     pd.cv_image = im
                     pd.detect_pose()
-                    pd.find_hands()
+                    pd.find_hands(x_lim=62,
+                                  y_lim=62)
 
                     if (pd.cv_image_detected_left is None) or (pd.cv_image_detected_right is None):
                         continue
@@ -70,11 +74,11 @@ if os.path.exists("/home/joelbaptista/Desktop/Hands_Dataset"):
 
                     user_data[f"user{subject}"][G] += 1
 
-                    # left_hand = cv2.resize(pd.cv_image_detected_left, (100, 100), interpolation=cv2.INTER_LINEAR_EXACT)
-                    # right_hand = cv2.resize(pd.cv_image_detected_right, (100, 100), interpolation=cv2.INTER_LINEAR_EXACT)
+                    left_hand = cv2.resize(pd.cv_image_detected_left, (224, 224), interpolation=cv2.INTER_LINEAR_EXACT)
+                    right_hand = cv2.resize(pd.cv_image_detected_right, (224, 224), interpolation=cv2.INTER_LINEAR_EXACT)
 
-                    left_hand = pd.cv_image_detected_left
-                    right_hand = pd.cv_image_detected_right
+                    # left_hand = pd.cv_image_detected_left
+                    # right_hand = pd.cv_image_detected_right
 
                     cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_left.png", left_hand)
                     cv2.imwrite(ROOT_DIR + dataset_path + saving_path + file[:-4] + "_right.png", right_hand)
