@@ -4,10 +4,15 @@ import cv2
 from keras.applications.mobilenet_v3 import MobileNetV3Small, preprocess_input, MobileNetV3
 from keras import Input, layers, optimizers, losses, metrics, callbacks, Sequential
 import keras
-from keras.layers import Dense, Flatten, Dropout
+from keras.layers import Dense, Flatten, Dropout, GlobalAveragePooling2D
 from vision_config.vision_definitions import ROOT_DIR
 import numpy as np
 import matplotlib.pyplot as plt
+from tensorflow.python.client import device_lib
+import tensorflow as tf
+
+os.environ["CUDA_CACHE_DISABLE"] = '0'
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = 'true'
 
 def visualize_results(history):
     # Plot the accuracy and loss curves
@@ -30,6 +35,7 @@ def visualize_results(history):
     plt.legend()
 
     plt.show()
+
 
 def create_model(model, intput_shape=(224, 224, 3), include_top=False, classes=6, dropout=0.2):
     if model == "mobnetsmall":
@@ -144,7 +150,6 @@ if __name__ == '__main__':
                 # label = i
                 y_data.append(label)
 
-
     print(f"There are {count} samples")
     print(f"x_data shape: {np.array(x_data).shape}")
     print(f"y_data shape: {np.array(y_data).shape}")
@@ -157,24 +162,38 @@ if __name__ == '__main__':
               "vgg16",
               "densenet"]
 
-    i = 3
+    i = 5
     patience = 10
+
     base_model = create_model(model=models[i], classes=len(gestures) * 2)
 
     for layer in base_model.layers[:]:
         layer.trainable = False
+    #
+    # for layer in base_model.layers:
+    #     print(layer, layer.trainable)
 
-    for layer in base_model.layers:
-        print(layer, layer.trainable)
+    model1 = Sequential()
 
-    model = Sequential()
+    model1.add(base_model)
 
-    model.add(base_model)
-    model.add(Flatten())
+    model1.add(GlobalAveragePooling2D())
 
-    model.add(Dense(512, activation='relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(len(gestures) * 2, activation='softmax'))
+    model1.compile('sgd', 'mse')
+
+    model1.summary()
+
+    c = Input(shape=(None, 1024))
+    # d = Flatten()(c)
+    d = Dense(8, activation='softmax')(c)
+    model2 = keras.models.Model(c, d)
+
+    # model.add(Flatten())
+
+    # model.add(Dense(100, activation='relu'))
+    # model2.add(Dropout(0.5))
+    # model2.add(Dense(len(gestures) * 2, activation='softmax'))
+
 
     # model_name = models[i]
     # train_all = False
@@ -222,21 +241,26 @@ if __name__ == '__main__':
 
     callback = keras.callbacks.EarlyStopping(monitor='val_loss', patience=patience)
 
-    model.summary()
+    model2.summary()
 
-    model.compile(loss='categorical_crossentropy',
-                  optimizer=optimizers.RMSprop(learning_rate=1e-4),
+    model2.compile(loss=keras.losses.SparseCategoricalCrossentropy(),
+                  # optimizer=optimizers.RMSprop(learning_rate=1e-4),
+                  optimizer=keras.optimizers.Adam(),
                   metrics=['acc'])
+
+    new_x_data = model1.predict(np.array(x_data))
+
+    del x_data
 
     # print(f"Training was done with {sum(count)}\n{count[0]} gesture 1\n{count[1]} gesture 2\n{count[2]} gesture 3")
 
     # input("Train model?")
     input()
-    fit_history = model.fit(
-        x=np.array(x_data),
+    fit_history = model2.fit(
+        x=np.array(new_x_data),
         y=np.array(y_data),
-        batch_size=25,
-        epochs=50,
+        batch_size=2000,
+        epochs=200,
         verbose=2,
         callbacks=[callback],
         validation_split=0.2,
