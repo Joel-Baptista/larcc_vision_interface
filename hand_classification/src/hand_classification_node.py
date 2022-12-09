@@ -23,10 +23,11 @@ class HandClassificationNode:
         org = (0, 90)
         thickness = 1
         font = 0.5
-        gestures = ['one finger', 'open hand', 'fist']
+        gestures = ["A", "F", "L", "Y"]
 
-        self.model = keras.models.load_model(path + "myModel_first")
+        self.model = keras.models.load_model(path + "myModel")
 
+        print("Waiting!!")
         while True:
             if self.left_hand is not None and self.right_hand is not None:
                 break
@@ -38,9 +39,7 @@ class HandClassificationNode:
             left_frame = copy.deepcopy(cv2.cvtColor(self.left_hand, cv2.COLOR_BGR2RGB))
             right_frame = copy.deepcopy(cv2.cvtColor(self.right_hand, cv2.COLOR_BGR2RGB))
 
-            st = time.time()
-
-            if left_frame.shape != (100, 100, 3) or right_frame.shape != (100, 100, 3):
+            if left_frame.shape != (200, 200, 3) or right_frame.shape != (200, 200, 3):
                 continue
 
             im_array = np.asarray([left_frame, right_frame])
@@ -49,10 +48,10 @@ class HandClassificationNode:
             # print(prediction)
 
             left_frame = cv2.putText(left_frame, gestures[np.argmax(prediction[0])], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                font, (0, 0, 255), thickness, cv2.LINE_AA)
+                                     font, (0, 0, 255), thickness, cv2.LINE_AA)
 
             right_frame = cv2.putText(right_frame, gestures[np.argmax(prediction[1])], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                font, (0, 0, 255), thickness, cv2.LINE_AA)
+                                      font, (0, 0, 255), thickness, cv2.LINE_AA)
 
             cv2.imshow('Left Hand Classifier', left_frame)
             cv2.imshow('Right Hand Classifier', right_frame)
@@ -64,8 +63,9 @@ class HandClassificationNode:
             if key == 113:
                 break
 
-    def left_hand_callback(self, msg):
+        cv2.destroyAllWindows()
 
+    def left_hand_callback(self, msg):
         self.left_hand = self.bridge.imgmsg_to_cv2(msg, "rgb8")
 
     def right_hand_callback(self, msg):
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     rospy.init_node("hand_classification", anonymous=True)
 
-    hc = HandClassificationNode()
+    hc = HandClassificationNode(path=f"{ROOT_DIR}/hand_classification/network/MobileNetV2/")
 
     try:
         rospy.spin()

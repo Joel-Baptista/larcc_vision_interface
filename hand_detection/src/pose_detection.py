@@ -82,8 +82,6 @@ class PoseDetection:
             r_c = [int(np.mean(x_right_points) * w), int(np.mean(y_right_points) * h)]
 
             # THIS COMMENTED CODE TRIES TO MAKE AN ADAPTATIVE WINDOW. FIRST WE WILL TRY FIXED WINDOW
-
-
             #
             # l_max = [int(max(x_left_points) * w), int(max(y_left_points) * h)]
             # l_min = [int(min(x_left_points) * w), int(min(y_left_points) * h)]
