@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import pandas as pd
 from vision_config.vision_definitions import ROOT_DIR
 import numpy as np

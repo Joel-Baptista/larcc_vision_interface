@@ -13,6 +13,8 @@ if __name__ == '__main__':
     pub_image = rospy.Publisher("/camera/rgb/image_raw", Image, queue_size=10)
     bridge = CvBridge()
 
+    print("waitting")
+
     while True:
 
         ret, frame = vid.read()
