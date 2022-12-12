@@ -24,6 +24,7 @@ class HandClassificationNode:
         thickness = 1
         font = 0.5
         gestures = ["A", "F", "L", "Y"]
+        # gestures = ["G1", "G2", "G5", "G6"]
 
         self.model = keras.models.load_model(path + "myModel")
 
@@ -76,7 +77,7 @@ if __name__ == '__main__':
 
     rospy.init_node("hand_classification", anonymous=True)
 
-    hc = HandClassificationNode(path=f"{ROOT_DIR}/hand_classification/network/MobileNetV2/")
+    hc = HandClassificationNode(path=f"{ROOT_DIR}/hand_classification/network/Resnet50/")
 
     try:
         rospy.spin()

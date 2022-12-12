@@ -1,5 +1,5 @@
 <launch>
-   <node pkg="hand_detection" name="home_test" type="home_test_node.py" />
+<!--    <node pkg="hand_detection" name="home_test" type="home_test_node.py" /> -->
    <node pkg="hand_detection" name="hand_detection" type="hand_detection_node.py" />
    <node pkg="hand_classification" name="hand_classification" type="hand_classification_node.py" />
 </launch>

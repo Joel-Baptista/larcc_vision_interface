@@ -27,13 +27,17 @@ class HandDetectionNode:
         while True:
             self.pd.cv_image = copy.deepcopy(self.cv_image)
             self.pd.detect_pose()
-            self.pd.find_hands(x_lim=100, y_lim=100)
+            self.pd.find_hands(x_lim=50, y_lim=50)
 
+            left_hand = copy.deepcopy(self.pd.cv_image_detected_left)
+            right_hand = copy.deepcopy(self.pd.cv_image_detected_right)
             if self.pd.cv_image_detected_left is not None:
-                self.pub_left.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_left, "rgb8"))
+                left_hand = cv2.resize(left_hand, (200, 200), interpolation=cv2.INTER_CUBIC)
+                self.pub_left.publish(self.bridge.cv2_to_imgmsg(left_hand, "rgb8"))
 
             if self.pd.cv_image_detected_right is not None:
-                self.pub_right.publish(self.bridge.cv2_to_imgmsg(self.pd.cv_image_detected_right, "rgb8"))
+                right_hand = cv2.resize(right_hand, (200, 200), interpolation=cv2.INTER_CUBIC)
+                self.pub_right.publish(self.bridge.cv2_to_imgmsg(right_hand, "rgb8"))
 
             cv2.imshow('Original Image', cv2.cvtColor(self.pd.cv_image_detected, cv2.COLOR_BGR2RGB))
             # # print(self.pd.cv_image_detected_left)

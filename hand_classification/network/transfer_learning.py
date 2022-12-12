@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tensorflow as tf
-from vision_config.vision_definitions import ROOT_DIR
+from vision_config.vision_definitions import ROOT_DIR, exports
 import copy
 import argparse
 import pandas as pd
@@ -22,13 +22,15 @@ if __name__ == '__main__':
     #<====================================DATASET PREPARATION==========================================>
     #<=================================================================================================>
 
-    BATCH_SIZE = 300
+    exports() # Função muita fixe
+
+    BATCH_SIZE = 1000
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/HANDS_dataset"
+    PATH = ROOT_DIR + "/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
-    train_dir = os.path.join(PATH, 'train')
+    train_dir = os.path.join(PATH, 'augmented')
     test_dir = os.path.join(PATH, 'test')
 
     train_dataset = tf.keras.utils.image_dataset_from_directory(train_dir,
@@ -117,18 +119,18 @@ if __name__ == '__main__':
     # Mobilenet expects values between [-1, 1] instead of [0, 255]
     preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
     # preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "MobileNetV2_new"
+    model_name = "Resnet50_new"
     val_split = 0.3
 
     # Create the base model from the pre-trained model MobileNet V2
     IMG_SHAPE = IMG_SIZE + (3,)
     # IMG_SHAPE = (224, 224, 3)
-    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-                                                   include_top=False,
-                                                   weights='imagenet')
-    # base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-    #                                             include_top=False,
-    #                                             weights='imagenet')
+    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+    #                                                include_top=False,
+    #                                                weights='imagenet')
+    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
+                                                include_top=False,
+                                                weights='imagenet')
 
     base_model.trainable = False
 
@@ -137,15 +139,15 @@ if __name__ == '__main__':
 
     # Feature extracter model
     feature_inputs = tf.keras.Input(shape=IMG_SHAPE)
-    x_f = data_augmentation(feature_inputs)
-    x_f = preprocess_input(x_f)
+    # x_f = data_augmentation(feature_inputs)
+    x_f = preprocess_input(feature_inputs)
     x_f = base_model(x_f, training=False)
     features = global_average_layer(x_f)
     feature_extractor = tf.keras.Model(feature_inputs, features)
 
     # Decision Model
 
-    decision_inputs = tf.keras.Input(shape=(1280,))
+    decision_inputs = tf.keras.Input(shape=(2048,))
     x_d = tf.keras.layers.Dense(4)(decision_inputs)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
@@ -294,36 +296,37 @@ if __name__ == '__main__':
     count_false = 0
     ground_truth = []
     confusion_predictions = []
-    gestures = ["A", "F", "L", "Y"]
+    # gestures = ["A", "F", "L", "Y"]
+    gestures = ["G1", "G2", "G5", "G6"]
 
-    if not args["load_features"]:
-        for i, batch in enumerate(iter(test_dataset)):
-            # image_batch, label_batch = next(iter(test_dataset))
-            image_batch = batch[0]
-            label_batch = batch[1]
-            feature_batch = feature_extractor(image_batch)
 
-            predictions = decision_model(feature_batch)
-            print(i)
-            for j, prediction in enumerate(predictions):
+    for i, batch in enumerate(iter(test_dataset)):
+        # image_batch, label_batch = next(iter(test_dataset))
+        image_batch = batch[0]
+        label_batch = batch[1]
+        feature_batch = feature_extractor(image_batch)
 
-                confusion_predictions.append(gestures[np.argmax(prediction)])
-                ground_truth.append(gestures[np.argmax(label_batch[j])])
+        predictions = decision_model(feature_batch)
+        print(i)
+        for j, prediction in enumerate(predictions):
 
-                if np.argmax(prediction) == np.argmax(label_batch[j]):
-                    count_true += 1
-                else:
-                    count_false += 1
+            confusion_predictions.append(gestures[np.argmax(prediction)])
+            ground_truth.append(gestures[np.argmax(label_batch[j])])
 
-        cm = confusion_matrix(ground_truth, confusion_predictions, labels=gestures)
-        blues = plt.cm.Blues
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=gestures)
-        disp.plot(cmap=blues)
+            if np.argmax(prediction) == np.argmax(label_batch[j]):
+                count_true += 1
+            else:
+                count_false += 1
 
-        print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
-        print(f"Tested with: {count_false + count_true}")
+    cm = confusion_matrix(ground_truth, confusion_predictions, labels=gestures)
+    blues = plt.cm.Blues
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=gestures)
+    disp.plot(cmap=blues)
 
-        plt.show()
+    print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
+    print(f"Tested with: {count_false + count_true}")
+
+    plt.show()
 
 
 
