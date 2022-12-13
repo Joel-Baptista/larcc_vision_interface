@@ -27,7 +27,7 @@ if __name__ == '__main__':
     BATCH_SIZE = 1000
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/ASL"
+    PATH = ROOT_DIR + "/Datasets/HANDS"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
     train_dir = os.path.join(PATH, 'augmented')
@@ -119,18 +119,18 @@ if __name__ == '__main__':
     # Mobilenet expects values between [-1, 1] instead of [0, 255]
     preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
     # preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "Resnet50_new"
+    model_name = "MobileNetV2_new"
     val_split = 0.3
 
     # Create the base model from the pre-trained model MobileNet V2
     IMG_SHAPE = IMG_SIZE + (3,)
     # IMG_SHAPE = (224, 224, 3)
-    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-    #                                                include_top=False,
-    #                                                weights='imagenet')
-    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-                                                include_top=False,
-                                                weights='imagenet')
+    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                                   include_top=False,
+                                                   weights='imagenet')
+    # base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
+    #                                             include_top=False,
+    #                                             weights='imagenet')
 
     base_model.trainable = False
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     # Decision Model
 
-    decision_inputs = tf.keras.Input(shape=(2048,))
+    decision_inputs = tf.keras.Input(shape=(1280,))
     x_d = tf.keras.layers.Dense(4)(decision_inputs)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)

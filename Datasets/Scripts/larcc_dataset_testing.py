@@ -13,7 +13,7 @@ import pandas
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/Resnet50/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/MobileNetV2_new/myModel")
 
     with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
         config = json.load(f)
@@ -53,7 +53,16 @@ if __name__ == '__main__':
             pd.detect_pose()
             pd.find_hands(x_lim=100, y_lim=100)
 
+            if pd.cv_image_detected_right is not None:
+
+                dic_test["gesture"].append(g)
+                dic_test["image name"].append(file)
+                buffer.append(np.array(pd.cv_image_detected_right))
+                ground_truth.append(np.array(ground_truth_array))
+                # cv2.imwrite(f"{ROOT_DIR}/Datasets/Larcc_dataset/Testing/{g}{file}", pd.cv_image_detected_left)
+
             if pd.cv_image_detected_left is not None:
+
                 dic_test["gesture"].append(g)
                 dic_test["image name"].append(file)
                 buffer.append(np.array(pd.cv_image_detected_left))
