@@ -30,16 +30,16 @@ if __name__ == '__main__':
         p = Augmentor.Pipeline(source_directory=ROOT_DIR + f"/Datasets/{dataset}/train/{gesture}",
                                output_directory=ROOT_DIR + f"/Datasets/{dataset}/augmented/{gesture}")
 
-        p.rotate(probability=0.25,
-                 max_left_rotation=25,
-                 max_right_rotation=25)
+        p.rotate(probability=0.50,
+                 max_left_rotation=10,
+                 max_right_rotation=10)
 
-        p.zoom(probability=0.25,
-               min_factor=0.8,
-               max_factor=1.2)
+        # p.zoom(probability=0.25,
+        #        min_factor=0.9,
+        #        max_factor=1.1)
 
         p.zoom_random(probability=0.25,
-                      percentage_area=0.7,
+                      percentage_area=0.8,
                       randomise_percentage_area=False)
 
         # p.random_brightness(probability=0.25,

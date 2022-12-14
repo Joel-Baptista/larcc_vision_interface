@@ -27,7 +27,7 @@ if __name__ == '__main__':
     BATCH_SIZE = 1000
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/HANDS"
+    PATH = ROOT_DIR + "/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
     train_dir = os.path.join(PATH, 'augmented')
@@ -117,20 +117,20 @@ if __name__ == '__main__':
     # <=================================================================================================>
 
     # Mobilenet expects values between [-1, 1] instead of [0, 255]
-    preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
-    # preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "MobileNetV2_new"
+    # preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
+    preprocess_input = tf.keras.applications.resnet50.preprocess_input
+    model_name = "ResNet50_ASL"
     val_split = 0.3
 
     # Create the base model from the pre-trained model MobileNet V2
     IMG_SHAPE = IMG_SIZE + (3,)
     # IMG_SHAPE = (224, 224, 3)
-    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-                                                   include_top=False,
-                                                   weights='imagenet')
-    # base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-    #                                             include_top=False,
-    #                                             weights='imagenet')
+    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+    #                                                include_top=False,
+    #                                                weights='imagenet')
+    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
+                                                include_top=False,
+                                                weights='imagenet')
 
     base_model.trainable = False
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     # Decision Model
 
-    decision_inputs = tf.keras.Input(shape=(1280,))
+    decision_inputs = tf.keras.Input(shape=(2048,))
     x_d = tf.keras.layers.Dense(4)(decision_inputs)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
@@ -206,6 +206,9 @@ if __name__ == '__main__':
             print(extracted_features.shape)
             print(extracted_labels.shape)
 
+        if not os.path.exists(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}"):
+            os.mkdir(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}")
+
         pd.DataFrame(np.array(extracted_features)).to_csv(
             ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
         pd.DataFrame(np.array(extracted_labels)).to_csv(
@@ -218,7 +221,7 @@ if __name__ == '__main__':
 
     st = time.time()
 
-    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)
+    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
 
     # history = model.fit(train_dataset,
     #                     epochs=initial_epochs,

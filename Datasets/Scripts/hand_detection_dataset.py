@@ -12,7 +12,7 @@ dataset_path = "/Datasets/HANDS"
 subjects = 5
 gestures = ["G1", "G2", "G5", "G6"]
 user_data = {}
-test_user = 5
+test_user = 6
 
 for i in range(0, len(gestures)):
     if not os.path.exists(ROOT_DIR + dataset_path + f"/train/{gestures[i]}"):
@@ -29,7 +29,7 @@ pd = PoseDetection(static_image_mode=True)
 
 # raw_dataset_path = "/home/joel/Desktop/Dataset"
 raw_dataset_path = "/home/joelbaptista/Desktop/Hands_Dataset"
-
+count = 0
 if os.path.exists(raw_dataset_path):
     for subject in range(1, subjects + 1):
         res = os.listdir(raw_dataset_path + f"/Subject{subject}")
@@ -51,6 +51,7 @@ if os.path.exists(raw_dataset_path):
                 last_checkpoint += 0.1
 
             for G in images_indexes[f"user{subject}"]:
+                count += 1
                 ranges = images_indexes[f"user{subject}"][G]
                 if ranges[0] <= int(image_index[0]) <= ranges[1]:
 
@@ -77,7 +78,7 @@ if os.path.exists(raw_dataset_path):
                     left_hand = pd.cv_image_detected_left
                     right_hand = pd.cv_image_detected_right
 
-                    cv2.imwrite(ROOT_DIR + dataset_path + saving_path + f"{G}_" + file[:-4] + "_left.png", left_hand)
+                    cv2.imwrite(ROOT_DIR + dataset_path + saving_path + f"{G}_{count}" + file[:-4] + "_left.png", left_hand)
                     # cv2.imwrite(ROOT_DIR + dataset_path + saving_path + f"{G}_" + file[:-4] + "_right.png", right_hand)
 
                     # cv2.imshow('Detected Images', pd.cv_image_detected)

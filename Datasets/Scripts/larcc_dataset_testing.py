@@ -13,7 +13,7 @@ import pandas
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/MobileNetV2_new/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/ResNet50_ASL/myModel")
 
     with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
         config = json.load(f)
@@ -53,21 +53,25 @@ if __name__ == '__main__':
             pd.detect_pose()
             pd.find_hands(x_lim=100, y_lim=100)
 
-            if pd.cv_image_detected_right is not None:
+            frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
 
-                dic_test["gesture"].append(g)
-                dic_test["image name"].append(file)
-                buffer.append(np.array(pd.cv_image_detected_right))
-                ground_truth.append(np.array(ground_truth_array))
-                # cv2.imwrite(f"{ROOT_DIR}/Datasets/Larcc_dataset/Testing/{g}{file}", pd.cv_image_detected_left)
-
+            cv2.imshow("test", frame)
+            cv2.waitKey(5)
             if pd.cv_image_detected_left is not None:
 
                 dic_test["gesture"].append(g)
                 dic_test["image name"].append(file)
-                buffer.append(np.array(pd.cv_image_detected_left))
+                buffer.append(np.array(frame))
                 ground_truth.append(np.array(ground_truth_array))
                 # cv2.imwrite(f"{ROOT_DIR}/Datasets/Larcc_dataset/Testing/{g}{file}", pd.cv_image_detected_left)
+
+            # if pd.cv_image_detected_left is not None:
+            #
+            #     dic_test["gesture"].append(g)
+            #     dic_test["image name"].append(file)
+            #     buffer.append(np.array(pd.cv_image_detected_left))
+            #     ground_truth.append(np.array(ground_truth_array))
+            #     # cv2.imwrite(f"{ROOT_DIR}/Datasets/Larcc_dataset/Testing/{g}{file}", pd.cv_image_detected_left)
 
         ground_truth_index += 1
 
@@ -79,8 +83,8 @@ if __name__ == '__main__':
     print(predictions.shape)
     print(config["gestures"])
 
-    print(predictions[0])
-    print(ground_truth[0])
+    # print(np.array(predictions))
+    # print(np.array(ground_truth))
 
     count_true = 0
     count_false = 0

@@ -3,7 +3,6 @@ import copy
 import numpy as np
 import cv2
 from cv_bridge import CvBridge
-
 from vision_config.vision_definitions import ROOT_DIR
 import mediapipe as mp
 
@@ -33,7 +32,7 @@ class PoseDetection:
         self.pose = self.mp_pose.Pose(static_image_mode=static_image_mode,
                                      model_complexity=2,
                                      enable_segmentation=False,
-                                     min_detection_confidence=0.7)
+                                     min_detection_confidence=0.5)
 
     def detect_pose(self):
 

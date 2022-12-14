@@ -8,6 +8,8 @@ import os
 import json
 import time
 import numpy as np
+from pose_detection import PoseDetection
+import copy
 
 
 class DatasetCapture:
@@ -18,6 +20,8 @@ class DatasetCapture:
         self.bridge = CvBridge()
         self.width = None
         self.height = None
+
+        self.pd = PoseDetection()
 
         with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
             config = json.load(f)
@@ -36,7 +40,12 @@ class DatasetCapture:
         buffer = []
 
         while True:
-            cv2.imshow('Video feed', self.frame)
+
+            self.pd.cv_image = copy.deepcopy(self.frame)
+            self.pd.detect_pose()
+            self.pd.find_hands(x_lim=50, y_lim=50)
+
+            cv2.imshow('Video feed', self.pd.cv_image_detected)
             key = cv2.waitKey(1)
 
             if not record and len(buffer) > 0:
@@ -63,7 +72,7 @@ class DatasetCapture:
                     print("Start recording in ...")
                     for j in range(1, 4):
                         print(j)
-                        time.sleep(1)
+                        # time.sleep(1)
                     print("GO")
                 else:
                     print("End recording")
