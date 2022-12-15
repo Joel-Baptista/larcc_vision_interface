@@ -24,14 +24,15 @@ if __name__ == '__main__':
 
     exports() # Função muita fixe
 
-    BATCH_SIZE = 1000
+    BATCH_SIZE = 200
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/ASL"
+    PATH = ROOT_DIR + "/Datasets/ASL/asl_alphabet_train"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
-    train_dir = os.path.join(PATH, 'augmented')
-    test_dir = os.path.join(PATH, 'test')
+    train_dir = os.path.join(PATH, 'train')
+    # test_dir = os.path.join(PATH, 'test')
+    test_dir = os.path.join(ROOT_DIR, 'Datasets/Larcc_dataset/test_ASL')
 
     train_dataset = tf.keras.utils.image_dataset_from_directory(train_dir,
                                                                 shuffle=True,
@@ -117,24 +118,27 @@ if __name__ == '__main__':
     # <=================================================================================================>
 
     # Mobilenet expects values between [-1, 1] instead of [0, 255]
-    # preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
-    preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "ResNet50_ASL"
+    preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
+    # preprocess_input = tf.keras.applications.resnet50.preprocess_input
+    model_name = "MobileNetV2_ASL1"
     val_split = 0.3
+
+    decision_input = 62720
 
     # Create the base model from the pre-trained model MobileNet V2
     IMG_SHAPE = IMG_SIZE + (3,)
     # IMG_SHAPE = (224, 224, 3)
-    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-    #                                                include_top=False,
-    #                                                weights='imagenet')
-    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-                                                include_top=False,
-                                                weights='imagenet')
+    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                                   include_top=False,
+                                                   weights='imagenet')
+    # base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
+    #                                             include_top=False,
+    #                                             weights='imagenet')
 
     base_model.trainable = False
 
-    global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
+    # global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
+    global_average_layer = tf.keras.layers.Flatten()
     # prediction_layer = tf.keras.layers.Dense(4)
 
     # Feature extracter model
@@ -147,7 +151,7 @@ if __name__ == '__main__':
 
     # Decision Model
 
-    decision_inputs = tf.keras.Input(shape=(2048,))
+    decision_inputs = tf.keras.Input(shape=(decision_input,))
     x_d = tf.keras.layers.Dense(4)(decision_inputs)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
@@ -164,6 +168,8 @@ if __name__ == '__main__':
     # <=================================================================================================>
     # <===================================FEATURE EXTRACTION============================================>
     # <=================================================================================================>
+    if not os.path.exists(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}"):
+        os.mkdir(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}")
 
     st = time.time()
 
@@ -191,6 +197,7 @@ if __name__ == '__main__':
         extracted_labels = None
 
         for i, batch in enumerate(iter(train_dataset)):
+
             image_batch = batch[0]
             label_batch = batch[1]
             # image_batch, label_batch = next(iter(test_dataset))
@@ -203,11 +210,8 @@ if __name__ == '__main__':
                 extracted_features = tf.concat(axis=0, values=[extracted_features, feature_batch_average])
                 extracted_labels = tf.concat(axis=0, values=[extracted_labels, label_batch])
 
-            print(extracted_features.shape)
-            print(extracted_labels.shape)
-
-        if not os.path.exists(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}"):
-            os.mkdir(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}")
+            # print(extracted_features.shape)
+            # print(extracted_labels.shape)
 
         pd.DataFrame(np.array(extracted_features)).to_csv(
             ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
@@ -299,8 +303,8 @@ if __name__ == '__main__':
     count_false = 0
     ground_truth = []
     confusion_predictions = []
-    # gestures = ["A", "F", "L", "Y"]
-    gestures = ["G1", "G2", "G5", "G6"]
+    gestures = ["A", "F", "L", "Y"]
+    # gestures = ["G1", "G2", "G5", "G6"]
 
 
     for i, batch in enumerate(iter(test_dataset)):

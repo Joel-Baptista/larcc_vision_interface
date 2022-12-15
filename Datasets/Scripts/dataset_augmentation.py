@@ -5,7 +5,7 @@ import json
 
 if __name__ == '__main__':
     aug_data = {}
-    dataset = "ASL"
+    dataset = "ASL/asl_alphabet_train"
     gestures = ["A", "F", "L", "Y"]
     # gestures = ["G1", "G2", "G5", "G6"]
 
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         p = Augmentor.Pipeline(source_directory=ROOT_DIR + f"/Datasets/{dataset}/train/{gesture}",
                                output_directory=ROOT_DIR + f"/Datasets/{dataset}/augmented/{gesture}")
 
-        p.rotate(probability=0.50,
+        p.rotate(probability=0.75,
                  max_left_rotation=10,
                  max_right_rotation=10)
 
@@ -38,9 +38,9 @@ if __name__ == '__main__':
         #        min_factor=0.9,
         #        max_factor=1.1)
 
-        p.zoom_random(probability=0.25,
-                      percentage_area=0.8,
-                      randomise_percentage_area=False)
+        # p.zoom_random(probability=0.25,
+        #               percentage_area=0.8,
+        #               randomise_percentage_area=False)
 
         # p.random_brightness(probability=0.25,
         #                     min_factor=0.9,
