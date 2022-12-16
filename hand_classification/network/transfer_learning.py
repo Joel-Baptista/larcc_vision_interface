@@ -24,15 +24,15 @@ if __name__ == '__main__':
 
     exports() # Função muita fixe
 
-    BATCH_SIZE = 200
+    BATCH_SIZE = 1000
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/ASL/asl_alphabet_train"
+    PATH = ROOT_DIR + "/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
-    train_dir = os.path.join(PATH, 'train')
-    # test_dir = os.path.join(PATH, 'test')
-    test_dir = os.path.join(ROOT_DIR, 'Datasets/Larcc_dataset/test_ASL')
+    train_dir = os.path.join(PATH, 'augmented')
+    test_dir = os.path.join(PATH, 'test')
+    # test_dir = os.path.join(ROOT_DIR, 'Datasets/Larcc_dataset/test_ASL')
 
     train_dataset = tf.keras.utils.image_dataset_from_directory(train_dir,
                                                                 shuffle=True,
@@ -118,22 +118,23 @@ if __name__ == '__main__':
     # <=================================================================================================>
 
     # Mobilenet expects values between [-1, 1] instead of [0, 255]
-    preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
-    # preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "MobileNetV2_ASL1"
+    # preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
+    preprocess_input = tf.keras.applications.resnet50.preprocess_input
+    model_name = "ResNet50_ASL1"
     val_split = 0.3
 
-    decision_input = 62720
+    decision_input = 100352
+    # decision_input = 62720
 
     # Create the base model from the pre-trained model MobileNet V2
     IMG_SHAPE = IMG_SIZE + (3,)
     # IMG_SHAPE = (224, 224, 3)
-    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-                                                   include_top=False,
-                                                   weights='imagenet')
-    # base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-    #                                             include_top=False,
-    #                                             weights='imagenet')
+    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+    #                                                include_top=False,
+    #                                                weights='imagenet')
+    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
+                                                include_top=False,
+                                                weights='imagenet')
 
     base_model.trainable = False
 
@@ -152,7 +153,9 @@ if __name__ == '__main__':
     # Decision Model
 
     decision_inputs = tf.keras.Input(shape=(decision_input,))
-    x_d = tf.keras.layers.Dense(4)(decision_inputs)
+    x_d = tf.keras.layers.Dense(1000)(decision_inputs)
+    x_d = tf.keras.activations.relu(x_d)
+    x_d = tf.keras.layers.Dense(4)(x_d)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
 
@@ -177,16 +180,20 @@ if __name__ == '__main__':
     extracted_labels = None
 
     if args['load_features']:
-        extracted_features_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-                                                        f"/{model_name}/extracted_features.csv")
-        extracted_labels_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-                                                      f"/{model_name}/extracted_labels.csv")
+        # extracted_features_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
+        #                                                 f"/{model_name}/extracted_features.csv")
+        # extracted_labels_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
+        #                                               f"/{model_name}/extracted_labels.csv")
+        extracted_features = np.load(ROOT_DIR + f"/Datasets/ASL/extracted_features"
+                                                f"/{model_name}/extracted_features.npy")
+        extracted_labels = np.load(ROOT_DIR + f"/Datasets/ASL/extracted_features"
+                                              f"/{model_name}/extracted_labels.npy")
 
-        extracted_features = tf.constant(extracted_features_csv)
-        extracted_labels = tf.constant(extracted_labels_csv)
-
-        extracted_features = extracted_features[:, 1:]
-        extracted_labels = extracted_labels[:, 1:]
+        # extracted_features = tf.constant(extracted_features_csv)
+        # extracted_labels = tf.constant(extracted_labels_csv)
+        #
+        # extracted_features = extracted_features[:, 1:]
+        # extracted_labels = extracted_labels[:, 1:]
 
         print(extracted_features.shape)
         print(extracted_labels.shape)
@@ -204,19 +211,29 @@ if __name__ == '__main__':
             feature_batch_average = feature_extractor(image_batch)
             print(i)
             if extracted_features is None:
-                extracted_features = feature_batch_average
-                extracted_labels = label_batch
+                # extracted_features = feature_batch_average
+                # extracted_labels = label_batch
+                extracted_features = feature_batch_average.numpy()
+                extracted_labels = label_batch.numpy()
             else:
-                extracted_features = tf.concat(axis=0, values=[extracted_features, feature_batch_average])
-                extracted_labels = tf.concat(axis=0, values=[extracted_labels, label_batch])
+                extracted_features = np.concatenate((extracted_features, feature_batch_average.numpy()), axis=0)
+                extracted_labels = np.concatenate((extracted_labels, label_batch.numpy()), axis=0)
+                # extracted_features = tf.concat(axis=0, values=[extracted_features, feature_batch_average])
+                # extracted_labels = tf.concat(axis=0, values=[extracted_labels, label_batch])
 
-            # print(extracted_features.shape)
-            # print(extracted_labels.shape)
+            print(extracted_features.shape)
+            print(extracted_labels.shape)
 
-        pd.DataFrame(np.array(extracted_features)).to_csv(
-            ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
-        pd.DataFrame(np.array(extracted_labels)).to_csv(
-            ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_labels.csv")
+        np.save(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.npy", extracted_features)
+        np.save(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_labels.npy", extracted_labels)
+
+        # pd.DataFrame(np.array(extracted_features)).to_csv(
+        #     ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
+        # pd.DataFrame(np.array(extracted_labels)).to_csv(
+        #     ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_labels.csv")
+
+    extracted_features = tf.constant(extracted_features)
+    extracted_labels = tf.constant(extracted_labels)
 
     feature_time = round(time.time() - st, 2)
     # <=================================================================================================>
@@ -237,11 +254,11 @@ if __name__ == '__main__':
 
     history = decision_model.fit(x=extracted_features,
                                  y=extracted_labels,
-                                 epochs=500,
+                                 epochs=20,
                                  validation_split=val_split,
                                  shuffle=True,
-                                 verbose=2,
-                                 batch_size=300,
+                                 verbose=1,
+                                 batch_size=3000,
                                  callbacks=[callback])
 
     training_time = round(time.time() - st, 2)

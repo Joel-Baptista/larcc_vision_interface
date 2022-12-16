@@ -13,7 +13,7 @@ import pandas
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/ResNet50_ASL/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/ResNet50_ASL1/myModel")
 
     with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
         config = json.load(f)
