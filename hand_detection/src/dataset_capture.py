@@ -3,7 +3,7 @@ import rospy
 import cv2
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from vision_config.vision_definitions import ROOT_DIR
+from vision_config.vision_definitions import ROOT_DIR, USERNAME
 import os
 import json
 import time
@@ -13,7 +13,7 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=5, save_path=f"{ROOT_DIR}/Datasets/Larcc_dataset/test"):
+    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/test"):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
 
         self.frame = None
@@ -23,14 +23,14 @@ class DatasetCapture:
 
         self.pd = PoseDetection()
 
-        with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
+        with open(f'{ROOT_DIR}/Dataset/configs/larcc_dataset_config.json') as f:
             config = json.load(f)
 
         for dataset in config:
             gestures = config[dataset]["gestures"]
             for g in gestures:
-                if not os.path.exists(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}"):
-                    os.mkdir(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}")
+                if not os.path.exists(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}"):
+                    os.mkdir(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}")
 
         print("Waiting!!")
         while True:
