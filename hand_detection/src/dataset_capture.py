@@ -13,7 +13,7 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=5, save_path=f"{ROOT_DIR}/Datasets/Larcc_dataset"):
+    def __init__(self, fps=5, save_path=f"{ROOT_DIR}/Datasets/Larcc_dataset/test"):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
 
         self.frame = None
@@ -26,9 +26,11 @@ class DatasetCapture:
         with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
             config = json.load(f)
 
-        for g in config["gestures"]:
-            if not os.path.exists(ROOT_DIR + f"/Datasets/Larcc_dataset/{g}"):
-                os.mkdir(ROOT_DIR + f"/Datasets/Larcc_dataset/{g}")
+        for dataset in config:
+            gestures = config[dataset]["gestures"]
+            for g in gestures:
+                if not os.path.exists(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}"):
+                    os.mkdir(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}")
 
         print("Waiting!!")
         while True:
@@ -43,7 +45,7 @@ class DatasetCapture:
 
             self.pd.cv_image = copy.deepcopy(self.frame)
             self.pd.detect_pose()
-            self.pd.find_hands(x_lim=50, y_lim=50)
+            self.pd.find_hands(x_lim=100, y_lim=100)
 
             cv2.imshow('Video feed', self.pd.cv_image_detected)
             key = cv2.waitKey(1)
@@ -72,7 +74,7 @@ class DatasetCapture:
                     print("Start recording in ...")
                     for j in range(1, 4):
                         print(j)
-                        # time.sleep(1)
+                        time.sleep(1)
                     print("GO")
                 else:
                     print("End recording")

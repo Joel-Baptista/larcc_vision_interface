@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import json
 import time
+from transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
@@ -18,13 +19,16 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     print(args)
 
+    with open(ROOT_DIR + '/hand_classification/config/transfer_learning.json') as json_file:
+        config = json.load(json_file)
+
     #<=================================================================================================>
     #<====================================DATASET PREPARATION==========================================>
     #<=================================================================================================>
 
-    exports() # Função muita fixe
+    exports() # Function for CUDA cores
 
-    BATCH_SIZE = 1000
+    BATCH_SIZE = 100
     IMG_SIZE = (200, 200)
 
     PATH = ROOT_DIR + "/Datasets/ASL"
@@ -56,7 +60,7 @@ if __name__ == '__main__':
 
 
         # dataset_batches = tf.data.experimental.cardinality(dataset)
-        # test_dataset = dataset.take(dataset_batches // 5) # Test 20% of total
+        # test_dataset = dataset.take(dataset_batches // 5) # test 20% of total
         # train_dataset = dataset.skip(int(dataset_batches // 5)) # Train is remaining 80%
 
         # print(test_dataset)
@@ -97,7 +101,7 @@ if __name__ == '__main__':
     data_augmentation = tf.keras.Sequential([
         # tf.keras.layers.Resizing(224, 224, 'bilinear', False),
         # tf.keras.layers.RandomFlip('horizontal'),
-        tf.keras.layers.RandomRotation(0.1),
+        # tf.keras.layers.RandomRotation(0.1),
         # tf.keras.layers.RandomZoom((0.8, 1.5), None, "reflect", "bilinear")
     ])
 
@@ -114,48 +118,38 @@ if __name__ == '__main__':
         # plt.show()
 
     # <=================================================================================================>
-    # <=======================================MODEL CREATION============================================>
+    # <=======================================MODEL DECISIONS===========================================>
     # <=================================================================================================>
 
-    # Mobilenet expects values between [-1, 1] instead of [0, 255]
-    # preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
-    preprocess_input = tf.keras.applications.resnet50.preprocess_input
-    model_name = "ResNet50_ASL1"
+    model_architecture = "MobileNetV2"
+    pooling = "MaxPooling"
+    model_name = f"{model_architecture}_ASL1"
+    training_epochs = 100
+    training_batch_size = 2000
+    training_patience = 10
+
+    # <=================================================================================================>
+    # <=======================================MODEL CREATION============================================>
+    # <=================================================================================================>
+    IMG_SHAPE = IMG_SIZE + (3,)
     val_split = 0.3
 
-    decision_input = 100352
-    # decision_input = 62720
-
-    # Create the base model from the pre-trained model MobileNet V2
-    IMG_SHAPE = IMG_SIZE + (3,)
-    # IMG_SHAPE = (224, 224, 3)
-    # base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
-    #                                                include_top=False,
-    #                                                weights='imagenet')
-    base_model = tf.keras.applications.ResNet50(input_shape=IMG_SHAPE,
-                                                include_top=False,
-                                                weights='imagenet')
-
-    base_model.trainable = False
-
-    # global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
-    global_average_layer = tf.keras.layers.Flatten()
-    # prediction_layer = tf.keras.layers.Dense(4)
-
-    # Feature extracter model
-    feature_inputs = tf.keras.Input(shape=IMG_SHAPE)
-    # x_f = data_augmentation(feature_inputs)
-    x_f = preprocess_input(feature_inputs)
-    x_f = base_model(x_f, training=False)
-    features = global_average_layer(x_f)
-    feature_extractor = tf.keras.Model(feature_inputs, features)
+    if "ResNet50" in model_architecture:
+        feature_extractor, features_input = create_resnet_base_model(IMG_SHAPE, pooling)
+    elif "MobileNetV2" in model_architecture:
+        feature_extractor, features_input = create_mobilenetv2_base_model(IMG_SHAPE, pooling)
+    else:
+        feature_extractor, features_input = create_mobilenetv2_base_model(IMG_SHAPE, pooling)
 
     # Decision Model
+    decision_input_shape = config[model_architecture][pooling]
 
-    decision_inputs = tf.keras.Input(shape=(decision_input,))
-    x_d = tf.keras.layers.Dense(1000)(decision_inputs)
+    decision_inputs = tf.keras.Input(shape=(decision_input_shape,))
+    x_d = tf.keras.layers.Dense(512)(decision_inputs)
     x_d = tf.keras.activations.relu(x_d)
-    x_d = tf.keras.layers.Dense(4)(x_d)
+    x_d = tf.keras.layers.Dense(128)(x_d)
+    x_d = tf.keras.activations.relu(x_d)
+    x_d = tf.keras.layers.Dense(3)(x_d)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
 
@@ -207,8 +201,12 @@ if __name__ == '__main__':
 
             image_batch = batch[0]
             label_batch = batch[1]
+
+            # new_image_batch = tf.image.rgb_to_hsv(image_batch)
+
             # image_batch, label_batch = next(iter(test_dataset))
             feature_batch_average = feature_extractor(image_batch)
+            # feature_batch_average = feature_extractor(new_image_batch)
             print(i)
             if extracted_features is None:
                 # extracted_features = feature_batch_average
@@ -242,7 +240,7 @@ if __name__ == '__main__':
 
     st = time.time()
 
-    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=training_patience)
 
     # history = model.fit(train_dataset,
     #                     epochs=initial_epochs,
@@ -254,11 +252,11 @@ if __name__ == '__main__':
 
     history = decision_model.fit(x=extracted_features,
                                  y=extracted_labels,
-                                 epochs=20,
+                                 epochs=training_epochs,
                                  validation_split=val_split,
                                  shuffle=True,
                                  verbose=1,
-                                 batch_size=3000,
+                                 batch_size=training_batch_size,
                                  callbacks=[callback])
 
     training_time = round(time.time() - st, 2)
@@ -297,7 +295,12 @@ if __name__ == '__main__':
     trained_model = tf.keras.Model(feature_extractor.inputs, outputs)
     trained_model.summary()
 
+    trained_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=base_learning_rate),
+                           loss=tf.keras.losses.CategoricalCrossentropy(),
+                           metrics=['accuracy'])
+
     trained_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
+    decision_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}_decision/myModel")
 
     training_stats = {"train_samples": extracted_features.shape[0],
                       "val_samples": int(extracted_features.shape[0] * val_split),

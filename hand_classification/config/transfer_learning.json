@@ -1,0 +1,4 @@
+{
+  "MobileNetV2": {"Flatten": 62720, "MaxPooling": 1280},
+  "RestNet50": {"Flatten":  100352, "MaxPooling": 2048}
+}

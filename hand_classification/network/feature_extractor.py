@@ -33,7 +33,7 @@ if __name__ == '__main__':
                                                           seed=88740)
 
     dataset_batches = tf.data.experimental.cardinality(dataset)
-    test_dataset = dataset.take(dataset_batches // 5) # Test 20% of total
+    test_dataset = dataset.take(dataset_batches // 5) # test 20% of total
     train_dataset = dataset.skip(int(dataset_batches // 5)) # Train is remaining 80%
 
     class_names = dataset.class_names

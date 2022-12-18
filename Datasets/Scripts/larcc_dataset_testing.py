@@ -10,10 +10,13 @@ import copy
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import pandas
+from hand_classification.network.transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/ResNet50_ASL1/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/MobileNetV2_ASL1_decision/myModel")
+
+    dataset = "ASL"
 
     with open(f'{ROOT_DIR}/Datasets/Larcc_dataset/larcc_dataset_config.json') as f:
         config = json.load(f)
@@ -26,8 +29,8 @@ if __name__ == '__main__':
                 }
 
     total_images = 0
-    for g in config["gestures"]:
-        res = os.listdir(ROOT_DIR + f"/Datasets/Larcc_dataset/{g}")
+    for g in config[dataset]["gestures"]:
+        res = os.listdir(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}")
         total_images += len(res)
 
     print(f"There are {total_images} images in this dataset")
@@ -36,10 +39,10 @@ if __name__ == '__main__':
     ground_truth_index = 0
     count = 0
     last_percentage = 0
-    for g in config["gestures"]:
+    for g in config[dataset]["gestures"]:
 
-        res = os.listdir(ROOT_DIR + f"/Datasets/Larcc_dataset/{g}")
-        ground_truth_array = [0] * len(config["gestures"])
+        res = os.listdir(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}")
+        ground_truth_array = [0] * len(config[dataset]["gestures"])
         ground_truth_array[ground_truth_index] = 1
         for file in res:
             if (count / total_images) * 100 >= last_percentage:
@@ -47,17 +50,18 @@ if __name__ == '__main__':
                 last_percentage += 10
 
             count += 1
-            img = cv2.imread(ROOT_DIR + f"/Datasets/Larcc_dataset/{g}/{file}")
+            img = cv2.imread(ROOT_DIR + f"/Datasets/Larcc_dataset/test/{g}/{file}")
 
             pd.cv_image = copy.deepcopy(img)
             pd.detect_pose()
             pd.find_hands(x_lim=100, y_lim=100)
 
-            frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
-
-            cv2.imshow("test", frame)
-            cv2.waitKey(5)
             if pd.cv_image_detected_left is not None:
+                frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
+
+                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                # cv2.imshow("test", frame)
+                # cv2.waitKey(5)
 
                 dic_test["gesture"].append(g)
                 dic_test["image name"].append(file)
@@ -78,10 +82,14 @@ if __name__ == '__main__':
     print(np.array(ground_truth).shape)
     print(np.array(buffer).shape)
 
-    predictions = model.predict(x=np.array(buffer), verbose=2)
+    feature_extractor, _ = create_mobilenetv2_base_model((200, 200, 3), "MaxPooling")
+
+    features = feature_extractor.predict(x=np.array(buffer), verbose=2)
+
+    predictions = model.predict(x=np.array(features), verbose=2)
 
     print(predictions.shape)
-    print(config["gestures"])
+    print(config[dataset]["gestures"])
 
     # print(np.array(predictions))
     # print(np.array(ground_truth))
@@ -91,12 +99,12 @@ if __name__ == '__main__':
     confusion_predictions = []
     confusion_ground_truth = []
     for j, prediction in enumerate(predictions):
-        dic_test["prediction"].append(config["gestures"][np.argmax(prediction)])
+        dic_test["prediction"].append(config[dataset]["gestures"][np.argmax(prediction)])
 
         # dic_test["probabilities"].append(str(prediction))
 
-        confusion_predictions.append(config["gestures"][np.argmax(prediction)])
-        confusion_ground_truth.append(config["gestures"][np.argmax(ground_truth[j])])
+        confusion_predictions.append(config[dataset]["gestures"][np.argmax(prediction)])
+        confusion_ground_truth.append(config[dataset]["gestures"][np.argmax(ground_truth[j])])
 
         if np.argmax(prediction) == np.argmax(ground_truth[j]):
             count_true += 1
@@ -109,9 +117,9 @@ if __name__ == '__main__':
     df = pandas.DataFrame(dic_test)
     df.to_csv(f"{ROOT_DIR}/Datasets/Larcc_dataset/Testing/test_results.csv")
 
-    cm = confusion_matrix(confusion_ground_truth, confusion_predictions, labels=config["gestures"])
+    cm = confusion_matrix(confusion_ground_truth, confusion_predictions, labels=config[dataset]["gestures"])
     blues = plt.cm.Blues
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=config["gestures"])
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=config[dataset]["gestures"])
     disp.plot(cmap=blues)
 
     plt.show()
