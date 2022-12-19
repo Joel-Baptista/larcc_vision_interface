@@ -11,6 +11,26 @@ def create_extraction_layer(extraction_type: str) -> tf.keras.layers:
     return tf.keras.layers.GlobalAveragePooling2D()
 
 
+def create_inceptionnet_base_model(img_shape: tuple, extraction_type: str):
+    preprocess_input = tf.keras.applications.inception_v3.preprocess_input
+
+    base_model = tf.keras.applications.InceptionV3(input_shape=img_shape,
+                                                   include_top=False,
+                                                   weights='imagenet')
+
+    base_model.trainable = False
+
+    extraction_layer = create_extraction_layer(extraction_type)
+
+    feature_inputs = tf.keras.Input(shape=img_shape)
+    x_f = preprocess_input(feature_inputs)
+    x_f = base_model(x_f, training=False)
+    features = extraction_layer(x_f)
+    extractor = tf.keras.Model(feature_inputs, features)
+
+    return extractor, feature_inputs
+
+
 def create_resnet_base_model(img_shape: tuple, extraction_type: str):
 
     preprocess_input = tf.keras.applications.resnet50.preprocess_input
@@ -24,7 +44,6 @@ def create_resnet_base_model(img_shape: tuple, extraction_type: str):
     extraction_layer = create_extraction_layer(extraction_type)
 
     feature_inputs = tf.keras.Input(shape=img_shape)
-    # x_f = data_augmentation(feature_inputs)
     x_f = preprocess_input(feature_inputs)
     x_f = base_model(x_f, training=False)
     features = extraction_layer(x_f)
@@ -44,7 +63,6 @@ def create_mobilenetv2_base_model(img_shape: tuple, extraction_type: str):
     extraction_layer = create_extraction_layer(extraction_type)
 
     feature_inputs = tf.keras.Input(shape=img_shape)
-    # x_f = data_augmentation(feature_inputs)
     x_f = preprocess_input(feature_inputs)
     x_f = base_model(x_f, training=False)
     features = extraction_layer(x_f)

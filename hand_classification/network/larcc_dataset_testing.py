@@ -14,7 +14,7 @@ from hand_classification.network.transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/MobileNetV2_ASL1_decision/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/InceptionV3/myModel")
 
     dataset = "ASL"
 
@@ -82,11 +82,7 @@ if __name__ == '__main__':
     print(np.array(ground_truth).shape)
     print(np.array(buffer).shape)
 
-    feature_extractor, _ = create_mobilenetv2_base_model((200, 200, 3), "MaxPooling")
-
-    features = feature_extractor.predict(x=np.array(buffer), verbose=2)
-
-    predictions = model.predict(x=np.array(features), verbose=2)
+    predictions = model.predict(x=np.array(buffer), verbose=2)
 
     print(predictions.shape)
     print(config[dataset]["gestures"])

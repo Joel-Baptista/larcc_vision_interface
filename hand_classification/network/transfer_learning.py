@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import tensorflow as tf
-from vision_config.vision_definitions import ROOT_DIR, exports
+from vision_config.vision_definitions import ROOT_DIR, exports, USERNAME
 import copy
 import argparse
 import pandas as pd
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     BATCH_SIZE = 100
     IMG_SIZE = (200, 200)
 
-    PATH = ROOT_DIR + "/Datasets/ASL"
+    PATH = f"/home/{USERNAME}/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
     train_dir = os.path.join(PATH, 'augmented')
@@ -121,10 +121,10 @@ if __name__ == '__main__':
     # <=======================================MODEL DECISIONS===========================================>
     # <=================================================================================================>
 
-    model_architecture = "MobileNetV2"
+    model_architecture = "InceptionV3"
     pooling = "MaxPooling"
-    model_name = f"{model_architecture}_ASL1"
-    training_epochs = 100
+    model_name = f"{model_architecture}"
+    training_epochs = 150
     training_batch_size = 2000
     training_patience = 10
 
@@ -138,6 +138,8 @@ if __name__ == '__main__':
         feature_extractor, features_input = create_resnet_base_model(IMG_SHAPE, pooling)
     elif "MobileNetV2" in model_architecture:
         feature_extractor, features_input = create_mobilenetv2_base_model(IMG_SHAPE, pooling)
+    elif "InceptionV3" in model_architecture:
+        feature_extractor, features_input = create_inceptionnet_base_model(IMG_SHAPE, pooling)
     else:
         feature_extractor, features_input = create_mobilenetv2_base_model(IMG_SHAPE, pooling)
 
@@ -145,11 +147,11 @@ if __name__ == '__main__':
     decision_input_shape = config[model_architecture][pooling]
 
     decision_inputs = tf.keras.Input(shape=(decision_input_shape,))
-    x_d = tf.keras.layers.Dense(512)(decision_inputs)
-    x_d = tf.keras.activations.relu(x_d)
-    x_d = tf.keras.layers.Dense(128)(x_d)
-    x_d = tf.keras.activations.relu(x_d)
-    x_d = tf.keras.layers.Dense(3)(x_d)
+    x_d = tf.keras.layers.Dense(1024)(decision_inputs)
+    # x_d = tf.keras.activations.relu(x_d)
+    # x_d = tf.keras.layers.Dense(128)(x_d)
+    # x_d = tf.keras.activations.relu(x_d)
+    x_d = tf.keras.layers.Dense(4)(x_d)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
 
@@ -165,8 +167,8 @@ if __name__ == '__main__':
     # <=================================================================================================>
     # <===================================FEATURE EXTRACTION============================================>
     # <=================================================================================================>
-    if not os.path.exists(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}"):
-        os.mkdir(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}")
+    if not os.path.exists(f"/home/{USERNAME}/Datasets/extracted_features/{model_architecture}_{pooling}"):
+        os.mkdir(f"/home/{USERNAME}/Datasets/extracted_features/{model_architecture}_{pooling}")
 
     st = time.time()
 
@@ -178,10 +180,10 @@ if __name__ == '__main__':
         #                                                 f"/{model_name}/extracted_features.csv")
         # extracted_labels_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
         #                                               f"/{model_name}/extracted_labels.csv")
-        extracted_features = np.load(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-                                                f"/{model_name}/extracted_features.npy")
-        extracted_labels = np.load(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-                                              f"/{model_name}/extracted_labels.npy")
+        extracted_features = np.load(f"/home/{USERNAME}/Datasets/extracted_features"
+                                     f"/{model_architecture}_{pooling}/extracted_features.npy")
+        extracted_labels = np.load(f"/home/{USERNAME}/Datasets/extracted_features"
+                                   f"/{model_architecture}_{pooling}/extracted_labels.npy")
 
         # extracted_features = tf.constant(extracted_features_csv)
         # extracted_labels = tf.constant(extracted_labels_csv)
@@ -222,8 +224,10 @@ if __name__ == '__main__':
             print(extracted_features.shape)
             print(extracted_labels.shape)
 
-        np.save(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.npy", extracted_features)
-        np.save(ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_labels.npy", extracted_labels)
+        np.save(f"/home/{USERNAME}/Datasets/extracted_features/{model_architecture}_{pooling}"
+                f"/extracted_features.npy", extracted_features)
+        np.save(f"/home/{USERNAME}/Datasets/extracted_features/{model_architecture}_{pooling}"
+                f"/extracted_labels.npy", extracted_labels)
 
         # pd.DataFrame(np.array(extracted_features)).to_csv(
         #     ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
@@ -300,7 +304,7 @@ if __name__ == '__main__':
                            metrics=['accuracy'])
 
     trained_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
-    decision_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}_decision/myModel")
+    # decision_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}_decision/myModel")
 
     training_stats = {"train_samples": extracted_features.shape[0],
                       "val_samples": int(extracted_features.shape[0] * val_split),
@@ -319,39 +323,39 @@ if __name__ == '__main__':
     # <===================================MODEL TESTING=================================================>
     # <=================================================================================================>
 
-    count_true = 0
-    count_false = 0
-    ground_truth = []
-    confusion_predictions = []
-    gestures = ["A", "F", "L", "Y"]
-    # gestures = ["G1", "G2", "G5", "G6"]
-
-
-    for i, batch in enumerate(iter(test_dataset)):
-        # image_batch, label_batch = next(iter(test_dataset))
-        image_batch = batch[0]
-        label_batch = batch[1]
-        feature_batch = feature_extractor(image_batch)
-
-        predictions = decision_model(feature_batch)
-        print(i)
-        for j, prediction in enumerate(predictions):
-
-            confusion_predictions.append(gestures[np.argmax(prediction)])
-            ground_truth.append(gestures[np.argmax(label_batch[j])])
-
-            if np.argmax(prediction) == np.argmax(label_batch[j]):
-                count_true += 1
-            else:
-                count_false += 1
-
-    cm = confusion_matrix(ground_truth, confusion_predictions, labels=gestures)
-    blues = plt.cm.Blues
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=gestures)
-    disp.plot(cmap=blues)
-
-    print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
-    print(f"Tested with: {count_false + count_true}")
+    # count_true = 0
+    # count_false = 0
+    # ground_truth = []
+    # confusion_predictions = []
+    # gestures = ["A", "F", "L", "Y"]
+    # # gestures = ["G1", "G2", "G5", "G6"]
+    #
+    #
+    # for i, batch in enumerate(iter(test_dataset)):
+    #     # image_batch, label_batch = next(iter(test_dataset))
+    #     image_batch = batch[0]
+    #     label_batch = batch[1]
+    #     feature_batch = feature_extractor(image_batch)
+    #
+    #     predictions = decision_model(feature_batch)
+    #     print(i)
+    #     for j, prediction in enumerate(predictions):
+    #
+    #         confusion_predictions.append(gestures[np.argmax(prediction)])
+    #         ground_truth.append(gestures[np.argmax(label_batch[j])])
+    #
+    #         if np.argmax(prediction) == np.argmax(label_batch[j]):
+    #             count_true += 1
+    #         else:
+    #             count_false += 1
+    #
+    # cm = confusion_matrix(ground_truth, confusion_predictions, labels=gestures)
+    # blues = plt.cm.Blues
+    # disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=gestures)
+    # disp.plot(cmap=blues)
+    #
+    # print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
+    # print(f"Tested with: {count_false + count_true}")
 
     plt.show()
 
