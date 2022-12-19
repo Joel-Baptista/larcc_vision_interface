@@ -31,7 +31,7 @@ if __name__ == '__main__':
                 }
 
     # folder = ""
-    folder = "/test"
+    folder = "/test2"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
@@ -57,12 +57,16 @@ if __name__ == '__main__':
             count += 1
             img = cv2.imread(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}/{file}")
 
+            # cv2.imshow("Original", img)
             pd.cv_image = copy.deepcopy(img)
             pd.detect_pose()
             pd.find_hands(x_lim=100, y_lim=100)
+            # cv2.imshow("Deteceted", pd.cv_image_detected)
+            # cv2.waitKey(100)
+            if pd.cv_image_detected_right is not None:
+                # frame = cv2.resize(pd.cv_image_detected_right, (200, 200), interpolation=cv2.INTER_CUBIC)
 
-            if pd.cv_image_detected_left is not None:
-                frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
+                frame = cv2.flip(pd.cv_image_detected_right, 1)
 
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
                 cv2.imshow("test", frame)

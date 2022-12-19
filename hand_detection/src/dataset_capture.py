@@ -13,7 +13,7 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/test"):
+    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/test2"):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
 
         self.frame = None
@@ -29,8 +29,8 @@ class DatasetCapture:
         for dataset in config:
             gestures = config[dataset]["gestures"]
             for g in gestures:
-                if not os.path.exists(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}"):
-                    os.mkdir(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}")
+                if not os.path.exists(f"{save_path}/{g}"):
+                    os.mkdir(f"{save_path}/{g}")
 
         print("Waiting!!")
         while True:

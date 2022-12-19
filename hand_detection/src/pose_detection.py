@@ -30,9 +30,9 @@ class PoseDetection:
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.mp_pose = mp.solutions.pose
         self.pose = self.mp_pose.Pose(static_image_mode=static_image_mode,
-                                     model_complexity=2,
-                                     enable_segmentation=False,
-                                     min_detection_confidence=0.5)
+                                      model_complexity=2,
+                                      enable_segmentation=False,
+                                      min_detection_confidence=0.1)
 
     def detect_pose(self):
 
