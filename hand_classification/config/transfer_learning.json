@@ -1,5 +1,5 @@
 {
   "MobileNetV2": {"Flatten": 62720, "MaxPooling": 1280},
-  "RestNet50": {"Flatten":  100352, "MaxPooling": 2048},
+  "ResNet50": {"Flatten":  100352, "MaxPooling": 2048},
   "InceptionV3": {"Flatten":  32768, "MaxPooling": 2048}
 }
