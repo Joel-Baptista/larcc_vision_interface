@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     exports() # Function for CUDA cores
 
-    BATCH_SIZE = 100
+    BATCH_SIZE = 1000
     IMG_SIZE = (200, 200)
 
     PATH = f"/home/{USERNAME}/Datasets/ASL"
@@ -123,8 +123,8 @@ if __name__ == '__main__':
 
     model_architecture = "InceptionV3"
     pooling = "MaxPooling"
-    model_name = f"{model_architecture}"
-    training_epochs = 150
+    model_name = f"{model_architecture}_augmented2"
+    training_epochs = 200
     training_batch_size = 2000
     training_patience = 10
 
@@ -147,11 +147,12 @@ if __name__ == '__main__':
     decision_input_shape = config[model_architecture][pooling]
 
     decision_inputs = tf.keras.Input(shape=(decision_input_shape,))
-    x_d = tf.keras.layers.Dense(1024)(decision_inputs)
+    x_d = tf.keras.layers.Dense(4)(decision_inputs)
     # x_d = tf.keras.activations.relu(x_d)
+    # x_d = tf.keras.layers.Dropout(0.1)(x_d)
     # x_d = tf.keras.layers.Dense(128)(x_d)
     # x_d = tf.keras.activations.relu(x_d)
-    x_d = tf.keras.layers.Dense(4)(x_d)
+    # x_d = tf.keras.layers.Dense(4)(x_d)
     decision_outputs = tf.keras.activations.softmax(x_d)
     decision_model = tf.keras.Model(decision_inputs, decision_outputs)
 
@@ -176,20 +177,10 @@ if __name__ == '__main__':
     extracted_labels = None
 
     if args['load_features']:
-        # extracted_features_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-        #                                                 f"/{model_name}/extracted_features.csv")
-        # extracted_labels_csv = pd.read_csv(ROOT_DIR + f"/Datasets/ASL/extracted_features"
-        #                                               f"/{model_name}/extracted_labels.csv")
         extracted_features = np.load(f"/home/{USERNAME}/Datasets/extracted_features"
                                      f"/{model_architecture}_{pooling}/extracted_features.npy")
         extracted_labels = np.load(f"/home/{USERNAME}/Datasets/extracted_features"
                                    f"/{model_architecture}_{pooling}/extracted_labels.npy")
-
-        # extracted_features = tf.constant(extracted_features_csv)
-        # extracted_labels = tf.constant(extracted_labels_csv)
-        #
-        # extracted_features = extracted_features[:, 1:]
-        # extracted_labels = extracted_labels[:, 1:]
 
         print(extracted_features.shape)
         print(extracted_labels.shape)
@@ -211,15 +202,11 @@ if __name__ == '__main__':
             # feature_batch_average = feature_extractor(new_image_batch)
             print(i)
             if extracted_features is None:
-                # extracted_features = feature_batch_average
-                # extracted_labels = label_batch
                 extracted_features = feature_batch_average.numpy()
                 extracted_labels = label_batch.numpy()
             else:
                 extracted_features = np.concatenate((extracted_features, feature_batch_average.numpy()), axis=0)
                 extracted_labels = np.concatenate((extracted_labels, label_batch.numpy()), axis=0)
-                # extracted_features = tf.concat(axis=0, values=[extracted_features, feature_batch_average])
-                # extracted_labels = tf.concat(axis=0, values=[extracted_labels, label_batch])
 
             print(extracted_features.shape)
             print(extracted_labels.shape)
@@ -228,11 +215,6 @@ if __name__ == '__main__':
                 f"/extracted_features.npy", extracted_features)
         np.save(f"/home/{USERNAME}/Datasets/extracted_features/{model_architecture}_{pooling}"
                 f"/extracted_labels.npy", extracted_labels)
-
-        # pd.DataFrame(np.array(extracted_features)).to_csv(
-        #     ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_features.csv")
-        # pd.DataFrame(np.array(extracted_labels)).to_csv(
-        #     ROOT_DIR + f"/Datasets/ASL/extracted_features/{model_name}/extracted_labels.csv")
 
     extracted_features = tf.constant(extracted_features)
     extracted_labels = tf.constant(extracted_labels)
@@ -245,14 +227,6 @@ if __name__ == '__main__':
     st = time.time()
 
     callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=training_patience)
-
-    # history = model.fit(train_dataset,
-    #                     epochs=initial_epochs,
-    #                     validation_data=validation_dataset,
-    #                     shuffle=True,
-    #                     verbose=2,
-    #                     batch_size=200,
-    #                     callbacks=[callback])
 
     history = decision_model.fit(x=extracted_features,
                                  y=extracted_labels,

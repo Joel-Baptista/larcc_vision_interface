@@ -14,7 +14,9 @@ from hand_classification.network.transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/InceptionV3/myModel")
+    model_name = "InceptionV3_augmented2"
+
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
 
     dataset = "ASL"
 
@@ -28,9 +30,12 @@ if __name__ == '__main__':
                 # "probabilities": []
                 }
 
+    # folder = ""
+    folder = "/test"
+
     total_images = 0
     for g in config[dataset]["gestures"]:
-        res = os.listdir(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}")
+        res = os.listdir(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}")
         total_images += len(res)
 
     print(f"There are {total_images} images in this dataset")
@@ -41,7 +46,7 @@ if __name__ == '__main__':
     last_percentage = 0
     for g in config[dataset]["gestures"]:
 
-        res = os.listdir(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}")
+        res = os.listdir(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}")
         ground_truth_array = [0] * len(config[dataset]["gestures"])
         ground_truth_array[ground_truth_index] = 1
         for file in res:
@@ -50,7 +55,7 @@ if __name__ == '__main__':
                 last_percentage += 10
 
             count += 1
-            img = cv2.imread(f"/home/{USERNAME}/Datasets/Larcc_dataset/test/{g}/{file}")
+            img = cv2.imread(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}/{file}")
 
             pd.cv_image = copy.deepcopy(img)
             pd.detect_pose()
@@ -60,8 +65,8 @@ if __name__ == '__main__':
                 frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
 
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-                # cv2.imshow("test", frame)
-                # cv2.waitKey(5)
+                cv2.imshow("test", frame)
+                cv2.waitKey(5)
 
                 dic_test["gesture"].append(g)
                 dic_test["image name"].append(file)
@@ -111,7 +116,7 @@ if __name__ == '__main__':
     print(f"Tested with: {count_false + count_true}")
 
     df = pandas.DataFrame(dic_test)
-    df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset/Testing/test_results.csv")
+    df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{model_name}_test_results.csv")
 
     cm = confusion_matrix(confusion_ground_truth, confusion_predictions, labels=config[dataset]["gestures"])
     blues = plt.cm.Blues

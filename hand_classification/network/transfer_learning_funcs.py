@@ -1,6 +1,68 @@
 import tensorflow as tf
 
 
+def get_bottom_top_model(model, layer_name):
+    layer = model.get_layer(layer_name)
+    bottom_input = tf.keras.Input(model.input_shape[1:])
+    bottom_output = bottom_input
+    top_input = tf.keras.Input(layer.output_shape[1:])
+    top_output = top_input
+
+    bottom = True
+    for layer in model.layers:
+        if bottom:
+            bottom_output = layer(bottom_output)
+        else:
+            top_output = layer(top_output)
+        if layer.name == layer_name:
+            bottom = False
+
+    bottom_model = tf.keras.Model(bottom_input, bottom_output)
+    top_model = tf.keras.Model(top_input, top_output)
+
+    return bottom_model, top_model
+def split_keras_model(model, freeze_percent):
+    '''
+    Input:
+      model: A pre-trained Keras Sequential model
+      index: The index of the layer where we want to split the model
+    Output:
+      model1: From layer 0 to index
+      model2: From index+1 layer to the output of the original model
+    The index layer will be the last layer of the model_1 and the same shape of that layer will be the input layer of the model_2
+    '''
+
+    index = int(freeze_percent * len(model.layers))
+    # Creating the first part...
+    # Get the input layer shape
+    layer_input_1 = tf.keras.Input(model.layers[0].input_shape[1:])
+    # Initialize the model with the input layer
+    x = layer_input_1
+    # Foreach layer: connect it to the new model
+    for layer in model.layers[1:index]:
+        x = layer(x)
+    # Create the model instance
+    model1 = tf.keras.Model(inputs=layer_input_1, outputs=x)
+
+    # Creating the second part...
+    # Get the input shape of desired layer
+    input_shape_2 = model.layers[index].get_input_shape_at(0)[1:]
+    print("Input shape of model 2: " + str(input_shape_2))
+    # A new input tensor to be able to feed the desired layer
+    layer_input_2 = tf.keras.Input(shape=input_shape_2)
+
+    # Create the new nodes for each layer in the path
+    x = layer_input_2
+    # Foreach layer connect it to the new model
+    for layer in model.layers[index:]:
+        x = layer(x)
+
+    # create the model
+    model2 = tf.keras.Model(inputs=layer_input_2, outputs=x)
+
+    return model1, model2
+
+
 def create_extraction_layer(extraction_type: str) -> tf.keras.layers:
 
     if extraction_type == "Flatten":
