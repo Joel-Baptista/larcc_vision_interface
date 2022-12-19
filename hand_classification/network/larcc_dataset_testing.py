@@ -30,8 +30,8 @@ if __name__ == '__main__':
                 # "probabilities": []
                 }
 
-    # folder = ""
-    folder = "/test"
+    folder = ""
+    # folder = "/test"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 dic_test["image name"].append(file)
                 buffer.append(np.array(frame))
                 ground_truth.append(np.array(ground_truth_array))
-                cv2.imwrite(f"/home/{USERNAME}/Datasets/Larcc_dataset/Testing/{g}/image{count}.png", frame)
+                # cv2.imwrite(f"/home/{USERNAME}/Datasets/Larcc_dataset/testing/{g}/image{count}.png", frame)
 
             # if pd.cv_image_detected_left is not None:
             #
