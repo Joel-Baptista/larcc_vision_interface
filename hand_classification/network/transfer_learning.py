@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -28,13 +29,13 @@ if __name__ == '__main__':
 
     exports() # Function for CUDA cores
 
-    BATCH_SIZE = 1000
+    BATCH_SIZE = 100
     IMG_SIZE = (200, 200)
 
     PATH = f"/home/{USERNAME}/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
-    train_dir = os.path.join(PATH, 'train')
+    train_dir = os.path.join(PATH, 'augmented')
     test_dir = os.path.join(PATH, 'test')
     # test_dir = os.path.join(ROOT_DIR, 'Datasets/Larcc_dataset/test_ASL')
 
@@ -121,9 +122,9 @@ if __name__ == '__main__':
     # <=======================================MODEL DECISIONS===========================================>
     # <=================================================================================================>
 
-    model_architecture = "ResNet50"
+    model_architecture = "InceptionV3"
     pooling = "MaxPooling"
-    model_name = f"{model_architecture}"
+    model_name = f"{model_architecture}_augmented2"
     training_epochs = 200
     training_batch_size = 2000
     training_patience = 10

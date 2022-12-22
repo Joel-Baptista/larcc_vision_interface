@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from vision_config.vision_definitions import ROOT_DIR, USERNAME
 import os
 import json
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         # Make some images brighter and some darker.
         # In 20% of all cases, we sample the multiplier once per channel,
         # which can end up changing the color of the images.
-        iaa.Multiply((0.8, 1.2), per_channel=0.2),
+        iaa.Multiply((0.6, 1.4), per_channel=0.2),
         # Apply affine transformations to each image.
         # Scale/zoom them, translate/move them, rotate them and shear them.
         iaa.Affine(

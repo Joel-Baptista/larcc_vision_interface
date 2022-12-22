@@ -14,7 +14,7 @@ from hand_classification.network.transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
-    model_name = "ResNet50_augmented2"
+    model_name = "InceptionV3_augmented2"
 
     model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
 
@@ -30,8 +30,8 @@ if __name__ == '__main__':
                 # "probabilities": []
                 }
 
-    folder = ""
-    # folder = "/test"
+    # folder = ""
+    folder = "/test_ASL"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
@@ -57,25 +57,36 @@ if __name__ == '__main__':
             count += 1
             img = cv2.imread(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}/{file}")
 
+            frame = cv2.resize(img, (200, 200), interpolation=cv2.INTER_CUBIC)
+
+            frame = cv2.flip(frame, 1)
+
+            # frame = cv2.GaussianBlur(frame, (7, 7), 0)
+
+            dic_test["gesture"].append(g)
+            dic_test["image name"].append(file)
+            buffer.append(np.array(frame))
+            ground_truth.append(np.array(ground_truth_array))
+
             # cv2.imshow("Original", img)
-            pd.cv_image = copy.deepcopy(img)
-            pd.detect_pose()
-            pd.find_hands(x_lim=100, y_lim=100)
-            # cv2.imshow("Deteceted", pd.cv_image_detected)
-            # cv2.waitKey(100)
-            if pd.cv_image_detected_left is not None:
-                frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
-
-                # frame = cv2.flip(pd.cv_image_detected_right, 1)
-
-                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-                cv2.imshow("test", frame)
-                cv2.waitKey(5)
-
-                dic_test["gesture"].append(g)
-                dic_test["image name"].append(file)
-                buffer.append(np.array(frame))
-                ground_truth.append(np.array(ground_truth_array))
+            # pd.cv_image = copy.deepcopy(img)
+            # pd.detect_pose()
+            # pd.find_hands(x_lim=100, y_lim=100)
+            cv2.imshow("Deteceted", frame)
+            cv2.waitKey(100)
+            # if pd.cv_image_detected_left is not None:
+            #     frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
+            #
+            #     # frame = cv2.flip(pd.cv_image_detected_right, 1)
+            #
+            #     # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            #     cv2.imshow("test", frame)
+            #     cv2.waitKey(5)
+            #
+            #     dic_test["gesture"].append(g)
+            #     dic_test["image name"].append(file)
+            #     buffer.append(np.array(frame))
+            #     ground_truth.append(np.array(ground_truth_array))
                 # cv2.imwrite(f"/home/{USERNAME}/Datasets/Larcc_dataset/testing/{g}/image{count}.png", frame)
 
             # if pd.cv_image_detected_left is not None:

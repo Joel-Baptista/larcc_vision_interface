@@ -1,7 +1,7 @@
 {
     "train_samples": 24000,
     "val_samples": 7200,
-    "test_samples": 1000,
-    "feature_extraction_time": 0.09,
-    "training_time": 9.14
+    "test_samples": 7800,
+    "feature_extraction_time": 609.31,
+    "training_time": 16.34
 }
