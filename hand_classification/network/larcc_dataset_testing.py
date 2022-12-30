@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # folder = ""
     # folder = "/home_testing"
     # folder = "/larcc_test_1"
-    folder = "/larcc_test_1/blurred_33_33"
+    folder = "/larcc_test_1/blurred_denoise"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
