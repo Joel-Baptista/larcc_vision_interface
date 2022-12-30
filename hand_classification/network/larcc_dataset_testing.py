@@ -31,7 +31,9 @@ if __name__ == '__main__':
                 }
 
     # folder = ""
-    folder = "/test_ASL"
+    # folder = "/home_testing"
+    # folder = "/larcc_test_1"
+    folder = "/larcc_test_1/blurred_33_33"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
@@ -58,24 +60,27 @@ if __name__ == '__main__':
             img = cv2.imread(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{g}/{file}")
 
             frame = cv2.resize(img, (200, 200), interpolation=cv2.INTER_CUBIC)
-
-            frame = cv2.flip(frame, 1)
-
+            cv2.imshow("Image", frame)
+            cv2.waitKey(5)
+            #
+            # frame = cv2.flip(frame, 1)
+            #
             # frame = cv2.GaussianBlur(frame, (7, 7), 0)
 
             dic_test["gesture"].append(g)
             dic_test["image name"].append(file)
             buffer.append(np.array(frame))
             ground_truth.append(np.array(ground_truth_array))
-
+            #
             # cv2.imshow("Original", img)
             # pd.cv_image = copy.deepcopy(img)
             # pd.detect_pose()
-            # pd.find_hands(x_lim=100, y_lim=100)
-            cv2.imshow("Deteceted", frame)
-            cv2.waitKey(100)
+            # pd.find_hands(x_lim=75, y_lim=75)
+
             # if pd.cv_image_detected_left is not None:
             #     frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
+            #     #
+            #     frame = cv2.fastNlMeansDenoisingColored(frame, None, 10, 21, 7, 21)
             #
             #     # frame = cv2.flip(pd.cv_image_detected_right, 1)
             #
@@ -87,7 +92,7 @@ if __name__ == '__main__':
             #     dic_test["image name"].append(file)
             #     buffer.append(np.array(frame))
             #     ground_truth.append(np.array(ground_truth_array))
-                # cv2.imwrite(f"/home/{USERNAME}/Datasets/Larcc_dataset/testing/{g}/image{count}.png", frame)
+            #     cv2.imwrite(f"/home/{USERNAME}/Datasets/Larcc_dataset/testing/{g}/image{count}.png", frame)
 
             # if pd.cv_image_detected_left is not None:
             #

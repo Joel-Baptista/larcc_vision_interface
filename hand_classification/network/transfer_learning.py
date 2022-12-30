@@ -35,7 +35,7 @@ if __name__ == '__main__':
     PATH = f"/home/{USERNAME}/Datasets/ASL"
 
     # train_dir = os.path.join(PATH, 'asl_alphabet_train/train')
-    train_dir = os.path.join(PATH, 'augmented')
+    train_dir = os.path.join(PATH, 'joined_dataset')
     test_dir = os.path.join(PATH, 'test')
     # test_dir = os.path.join(ROOT_DIR, 'Datasets/Larcc_dataset/test_ASL')
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     model_architecture = "InceptionV3"
     pooling = "MaxPooling"
-    model_name = f"{model_architecture}_augmented2"
+    model_name = f"{model_architecture}_joined_dataset"
     training_epochs = 200
     training_batch_size = 2000
     training_patience = 10
