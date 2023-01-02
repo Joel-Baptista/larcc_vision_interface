@@ -7,14 +7,15 @@ import numpy as np
 import keras
 import os
 import copy
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, recall_score, \
+    precision_score, f1_score
 import matplotlib.pyplot as plt
 import pandas
 from hand_classification.network.transfer_learning_funcs import *
 
 if __name__ == '__main__':
 
-    model_name = "InceptionV3_augmented2"
+    model_name = "InceptionV3_blurred"
 
     model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     # folder = ""
     # folder = "/home_testing"
     # folder = "/larcc_test_1"
-    folder = "/larcc_test_1/blurred_denoise"
+    folder = "/larcc_test_1/blurred_33_33"
 
     total_images = 0
     for g in config[dataset]["gestures"]:
@@ -138,9 +139,40 @@ if __name__ == '__main__':
     df = pandas.DataFrame(dic_test)
     df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{model_name}_test_results.csv")
 
+    recall = recall_score(confusion_ground_truth, confusion_predictions, average=None)
+    precision = precision_score(confusion_ground_truth, confusion_predictions, average=None)
+    f1 = f1_score(confusion_ground_truth, confusion_predictions, average=None)
+
+    dic_results = {"accuracy": accuracy_score(confusion_ground_truth, confusion_predictions), "precision": {},
+                   "recall": {}, "f1": {}}
+
+    for i, label in enumerate(config[dataset]["gestures"]):
+        print(i)
+        dic_results["recall"][label] = recall[i]
+        dic_results["precision"][label] = precision[i]
+        dic_results["f1"][label] = f1[i]
+
+    dic_results["recall"]["average"] = np.mean(recall)
+    dic_results["precision"]["average"] = np.mean(precision)
+    dic_results["f1"]["average"] = np.mean(f1)
+
+    print(accuracy_score(confusion_ground_truth, confusion_predictions))
+    print(recall_score(confusion_ground_truth, confusion_predictions, average=None))
+    print(precision_score(confusion_ground_truth, confusion_predictions, average=None))
+    print(f1_score(confusion_ground_truth, confusion_predictions, average=None))
+
+    print(dic_results)
+
+    with open(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{model_name}_results.json", 'w') as outfile:
+        json.dump(dic_results, outfile)
+
     cm = confusion_matrix(confusion_ground_truth, confusion_predictions, labels=config[dataset]["gestures"])
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=config[dataset]["gestures"])
     disp.plot(cmap=blues)
 
+    plt.savefig(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/cm.png")
+
     plt.show()
+
+

@@ -75,7 +75,7 @@ if __name__ == '__main__':
             images_aug = seq(images=images)
 
             for i, image in enumerate(images_aug):
-                cv2.imwrite(f"/home/{USERNAME}/Datasets/{dataset}/augmented/{gesture}/image{j * len(res) + i}.png", image)
+                cv2.imwrite(f"/home/{USERNAME}/Datasets/{dataset}/augmented_blur/{gesture}/image{j * len(res) + i}.png", image)
 
             print(f"Gesture {gesture} augmented")
 

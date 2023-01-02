@@ -33,9 +33,9 @@ class BackgroundBlur:
                               (23, 23, 0),
                               (33, 33, 0)]
 
-        # for blurred_stat in self.blurred_stats:
-        #     blurred_image = cv2.GaussianBlur(self.img, (blurred_stat[0], blurred_stat[1]), blurred_stat[2])
-        #     blurred_images.append(blurred_image)
+        for blurred_stat in self.blurred_stats:
+            blurred_image = cv2.GaussianBlur(self.img, (blurred_stat[0], blurred_stat[1]), blurred_stat[2])
+            blurred_images.append(blurred_image)
 
         images_to_show = []
 
@@ -45,9 +45,10 @@ class BackgroundBlur:
 
         # images_to_show.append(blurred_images[0])
 
-        self.noiseless_image_colored = cv2.fastNlMeansDenoisingColored(self.img, None, 1, 10, 5, 21)
+        self.noiseless_image_colored = self.img
+        # self.noiseless_image_colored = cv2.fastNlMeansDenoisingColored(self.img, None, 1, 10, 5, 21)
 
-        blurred_image = cv2.GaussianBlur(self.noiseless_image_colored, (7, 7), 0)
+        blurred_image = cv2.GaussianBlur(self.noiseless_image_colored, (33, 33), 0)
 
         cv2.imshow("Noiseless image", self.noiseless_image_colored)
 
@@ -55,7 +56,7 @@ class BackgroundBlur:
 
         hsv = cv2.cvtColor(self.noiseless_image_colored, cv2.COLOR_BGR2HSV)
 
-        hsv_mask1 = cv2.inRange(hsv, (0, 70, 0), (15, 255, 255))
+        hsv_mask1 = cv2.inRange(hsv, (0, 30, 0), (15, 255, 255))
 
         cv2.imshow("Preprocessed BW", hsv_mask1)
 
@@ -122,8 +123,8 @@ class BackgroundBlur:
         #     self.final_images.append(self.final_image)
         #     # cv2.imshow(f"Blurred Image {count}", self.final_image)
 
-        # self.final_image = cv2.bitwise_and(blurred_image, blurred_image, mask=image_binary_inv)
-        self.final_image = cv2.bitwise_and(self.noiseless_image_colored, self.noiseless_image_colored, mask=image_binary_inv)
+        self.final_image = cv2.bitwise_and(blurred_image, blurred_image, mask=image_binary_inv)
+        # self.final_image = cv2.bitwise_and(self.noiseless_image_colored, self.noiseless_image_colored, mask=image_binary_inv)
         self.final_image = cv2.add(self.final_image, masked_image)
 
         images_to_show.append(self.final_image)
@@ -135,7 +136,7 @@ class BackgroundBlur:
         #
         #     cv2.imshow(f"{self.blurred_stats[i]}", self.final_images[i])
         #
-        key = cv2.waitKey()
+        key = cv2.waitKey(1)
 
         if key == ord('q'):
             exit()
@@ -155,8 +156,8 @@ class BackgroundBlur:
 
 if __name__ == '__main__':
 
-    # dataset_path = f"/home/{USERNAME}/Datasets/ASL/train"
-    dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1"
+    dataset_path = f"/home/{USERNAME}/Datasets/ASL/train"
+    # dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1"
 
     gestures = ["A", "F", "L", "Y"]
     # gestures = ["L", "Y"]
@@ -172,9 +173,9 @@ if __name__ == '__main__':
 
             img = cv2.imread(f"{dataset_path}/{g}/{file}")
 
-            pd.cv_image = copy.deepcopy(img)
-            pd.detect_pose()
-            pd.find_hands(x_lim=75, y_lim=75)
+            # pd.cv_image = copy.deepcopy(img)
+            # pd.detect_pose()
+            # pd.find_hands(x_lim=75, y_lim=75)
 
             # if pd.cv_image_detected_right is not None:
             #     cv2.imshow("Image", pd.cv_image_detected_right)
@@ -187,12 +188,12 @@ if __name__ == '__main__':
             # if key == ord('q'):
             #     exit()
             #
-            # bb.img = copy.deepcopy(img)
-            bb.img = copy.deepcopy(pd.cv_image_detected_left)
+            bb.img = copy.deepcopy(img)
+            # bb.img = copy.deepcopy(pd.cv_image_detected_left)
 
             bb.background_segementation()
 
-            cv2.imwrite(f"{dataset_path}/denoised_bg/{g}/{file}", bb.final_image)
+            cv2.imwrite(f"/home/{USERNAME}/Datasets/ASL/train_blurred/{g}/{file}", bb.final_image)
 
             # cv2.imshow("Original Image", bb.img)
             # cv2.imshow("Final Mask", bb.final_mask)
@@ -201,12 +202,12 @@ if __name__ == '__main__':
             # key = cv2.waitKey()
             #
             # if key == ord('y'):
-            #     for i in range(0, len(bb.final_images)):
-            #         stats = bb.blurred_stats[i]
-            #         cv2.imwrite(f"{dataset_path}/blurred_{stats[0]}_{stats[1]}/{g}/{file}",
-            #                     bb.final_images[i])
-            #
-            #     print("Images saved")
+            # for i in range(0, len(bb.final_images)):
+            #     stats = bb.blurred_stats[i]
+            #     cv2.imwrite(f"{dataset_path}/blurred_{stats[0]}_{stats[1]}/{g}/{file}",
+            #                 bb.final_images[i])
+
+            # print("Images saved")
             #
             # if key == ord('q'):
             #     exit()
