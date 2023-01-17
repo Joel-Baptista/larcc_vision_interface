@@ -13,8 +13,9 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/test2"):
-        rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
+    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/astra"):
+        # rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
+        rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
 
         self.frame = None
         self.bridge = CvBridge()

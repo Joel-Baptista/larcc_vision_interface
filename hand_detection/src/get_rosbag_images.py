@@ -12,7 +12,7 @@ from pose_detection import PoseDetection
 
 class GetRosbagImages:
     def __init__(self, path):
-        rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
+        rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback) # Kinect
 
         self.bridge = CvBridge()
         self.cv_image = None

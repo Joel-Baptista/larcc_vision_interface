@@ -18,8 +18,8 @@ if __name__ == '__main__':
     while True:
 
         ret, frame = vid.read()
-
-        # cv2.imshow('frame', frame)
+        
+        cv2.imshow('frame', frame)
 
         pub_image.publish(bridge.cv2_to_imgmsg(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), "rgb8"))
 
