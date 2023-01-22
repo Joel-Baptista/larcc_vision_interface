@@ -13,6 +13,29 @@ from skimage.color import rgb2ycbcr, gray2rgb, rgb2yiq
 from vision_config.vision_definitions import USERNAME
 
 
+def get_largest_item(mask):
+
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    largest_mask = np.zeros(mask.shape)
+
+    all_areas = []
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        all_areas.append(area)
+
+    largest_item = max(contours, key=cv2.contourArea)
+
+    kernel = np.ones((3, 3), np.uint8)
+
+    largest_mask = cv2.drawContours(largest_mask, [largest_item], -1, 255, thickness=-1)
+    largest_mask = cv2.dilate(largest_mask, kernel)
+    # largest_mask = cv2.fillPoly(largest_mask, pts=largest_item, color=255)
+    # largest_mask = cv2.floodFill(largest_mask, largest_item, color=255)
+
+    return largest_mask
+
+
 def draw_ellipses(gmm, ax):
     for n, color in enumerate(colors):
         covariances = gmm.covariances_[n][:2, :2]
@@ -61,15 +84,16 @@ def normalize_channel(img):
 
 if __name__ == '__main__':
 
-
     # Loads dataset
+    # df = pd.read_csv(f'/home/{USERNAME}/Datasets/ASL/Skin_NonSkin.txt', index_col=0)
+    # df = pd.read_csv(f'/home/{USERNAME}/Datasets/ASL/gmm_background/Skin_NonSkin.txt', index_col=0)
     df = pd.read_csv(f'/home/{USERNAME}/Datasets/Skin_NonSkin.txt', header=None, delim_whitespace=True)
     df.columns = ['B', 'G', 'R', 'skin']
 
     # Plot the distribution of the RGB values for skin and nonskin examples (1 is skin, 2 is no skin)
-    g = sns.catplot(data=pd.melt(df, id_vars='skin'),
-                    x='variable', y='value', hue='variable', col='skin',
-                    kind='box', palette=sns.color_palette("hls", 3)[::-1])
+    # g = sns.catplot(data=pd.melt(df, id_vars='skin'),
+    #                 x='variable', y='value', hue='variable', col='skin',
+    #                 kind='box', palette=sns.color_palette("hls", 3)[::-1])
 
     # Obtain cb and cr values from RGB values of pixels and plot theirs distribution for skin and nonskin examples
 
@@ -82,19 +106,21 @@ if __name__ == '__main__':
     #                     .5 * (255 * df.B / df.S)).astype(int)
     # df['Cr'] = np.round(128 + .5 * (255 * df.R / df.S) - .418688 * (255 * df.G / df.S) -
     #                     .081312 * (255 * df.B / df.S)).astype(int)
-
+    #
     df['Cb'] = np.round(128 - .168736 * df.R - .331364 * df.G +
                         .5 * df.B).astype(int)
-    df['Cr'] = np.round(128 + .5 * df.R - .418688 * df.G -
-                        .081312 * df.B).astype(int)
-    # df['I'] = np.round(.596 * df.R - .275 * df.G -
-    #                    .321 * df.B).astype(int)
+    # df['Cr'] = np.round(128 + .5 * df.R - .418688 * df.G -
+    #                     .081312 * df.B).astype(int)
+    df['I'] = np.round(.596 * df.R - .275 * df.G -
+                       .321 * df.B).astype(int)
+    # df['Q'] = np.round(.212 * df.R - .523 * df.G -
+    #                    .311 * df.B).astype(int)
 
     df.drop(['B', 'G', 'R'], axis=1, inplace=True)
     g = sns.catplot(data=pd.melt(df, id_vars='skin'),
                     x='variable', y='value', hue='variable',
                     col='skin', kind='box')
-    # plt.show()
+    plt.show()
     # Separate the skin and nonskin training examples and fit two Gaussian
     # mixture models, one on the skin examples and another on the nonskin examples
     k = 4
@@ -116,30 +142,42 @@ if __name__ == '__main__':
 
     # image_path = f"/home/{USERNAME}/Datasets/Site.png"
     # image_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/astra/A/image0.png"
-    # image_path = f"/home/{USERNAME}/Datasets/ASL/train/A/A2660.jpg"
-    # image_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1/detected/A/image0.png"
-    image_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1/A/image0.png"
+    # image_path = f"/home/{USERNAME}/Datasets/ASL/train/A/A1500.jpg"
+    image_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1/detected/A/image0.png"
+    # image_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/larcc_test_1/A/image0.png"
 
     image = imread(image_path)[..., :3]
     cv2.imshow("Origial", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-    cv2.imshow("bilateralFilert", cv2.cvtColor(cv2.bilateralFilter(image, 15, 75, 75), cv2.COLOR_RGB2BGR))
+    cv2.imshow("bilateralFilert", cv2.cvtColor(cv2.bilateralFilter(image, 5, 10, 10), cv2.COLOR_RGB2BGR))
     # cv2.imshow("Normalized", normalize_channel(cv2.cvtColor(image, cv2.COLOR_RGB2BGR)))
 
-    image = cv2.bilateralFilter(image, 10, 20, 20)
+    image_use = cv2.bilateralFilter(image, 10, 20, 20)
+    #
+    # proc_image = np.reshape(rgb2ycbcr(image), (-1, 3))
 
-    proc_image = np.reshape(rgb2ycbcr(image), (-1, 3))
-    print(proc_image.shape)
-    # proc_image1 = rgb2ycbcr(image)[:, :, 1:]
-    # proc_image2 = rgb2yiq(image)[:, :, 1]
-    # proc_image = np.reshape(cv2.merge([proc_image1, proc_image2]), (-1, 3))
+    proc_image1 = rgb2ycbcr(image)[:, :, 1]
+    proc_image2 = 255 * rgb2yiq(image)[:, :, 1]
+    proc_image = np.reshape(cv2.merge([proc_image1, proc_image2]), (-1, 2))
+    print(np.max(proc_image2))
+    print(np.min(proc_image2))
 
-    skin_score = skin_gmm.score_samples(proc_image[:, 1:])
-    not_skin_score = not_skin_gmm.score_samples(proc_image[:, 1:])
+    skin_score = skin_gmm.score_samples(proc_image)
+    not_skin_score = not_skin_gmm.score_samples(proc_image)
     result = skin_score > not_skin_score
+    # skin_score = skin_gmm.score_samples(proc_image[:, 1:])
+    # not_skin_score = not_skin_gmm.score_samples(proc_image[:, 1:])
+    # result = skin_score > not_skin_score
 
     result = result.reshape(image.shape[0], image.shape[1])
-    result = np.bitwise_and(gray2rgb(255 * result.astype(np.uint8)), image)
-    cv2.imshow("Result", cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
+    # result = np.bitwise_and(gray2rgb(255 * result.astype(np.uint8)), image)
+
+    mask2 = get_largest_item(result.astype(np.uint8))
+
+    segmented_image = copy.deepcopy(image)
+    segmented_image[mask2 == 0] = [0, 0, 0]
+
+    # cv2.imshow("Result", segmented_image)
+    cv2.imshow("Result", cv2.cvtColor(segmented_image, cv2.COLOR_RGB2BGR))
     cv2.waitKey()
 
 

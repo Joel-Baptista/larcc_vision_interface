@@ -10,10 +10,72 @@ import copy
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, recall_score, \
     precision_score, f1_score
 import matplotlib.pyplot as plt
-import pandas
+import pandas as pdd
+from sklearn.mixture import GaussianMixture
 from hand_classification.network.transfer_learning_funcs import *
+from skimage.color import rgb2ycbcr, gray2rgb, rgb2yiq
+
+
+def get_largest_item(mask):
+
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    largest_mask = np.zeros(mask.shape)
+
+    all_areas = []
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        all_areas.append(area)
+
+    largest_item = max(contours, key=cv2.contourArea)
+
+    kernel = np.ones((3, 3), np.uint8)
+
+    largest_mask = cv2.drawContours(largest_mask, [largest_item], -1, 255, thickness=-1)
+    largest_mask = cv2.dilate(largest_mask, kernel)
+    # largest_mask = cv2.fillPoly(largest_mask, pts=largest_item, color=255)
+    # largest_mask = cv2.floodFill(largest_mask, largest_item, color=255)
+
+    return largest_mask
+
+
+def remove_bg(image, gmm1, gmm2):
+    proc_image1 = rgb2ycbcr(image)[:, :, 1]
+    proc_image2 = 255 * rgb2yiq(image)[:, :, 1]
+    proc_image = np.reshape(cv2.merge([proc_image1, proc_image2]), (-1, 2))
+
+    skin_score = gmm1.score_samples(proc_image)
+    not_skin_score = gmm2.score_samples(proc_image)
+    result = skin_score > not_skin_score
+
+    result = result.reshape(image.shape[0], image.shape[1])
+
+    mask2 = get_largest_item(result.astype(np.uint8))
+
+    segmented_image = copy.deepcopy(image)
+    segmented_image[mask2 == 0] = [0, 0, 0]
+
+    return segmented_image
+
 
 if __name__ == '__main__':
+
+    df = pdd.read_csv(f'/home/{USERNAME}/Datasets/Skin_NonSkin.txt', header=None, delim_whitespace=True)
+    df.columns = ['B', 'G', 'R', 'skin']
+    df['Cb'] = np.round(128 - .168736 * df.R - .331364 * df.G +
+                        .5 * df.B).astype(int)
+    # df['Cr'] = np.round(128 + .5 * df.R - .418688 * df.G -
+    #                     .081312 * df.B).astype(int)
+    df['I'] = np.round(.596 * df.R - .275 * df.G -
+                       .321 * df.B).astype(int)
+    df.drop(['B', 'G', 'R'], axis=1, inplace=True)
+    k = 4
+
+    skin_data = df[df.skin == 1].drop(['skin'], axis=1).to_numpy()
+    not_skin_data = df[df.skin == 2].drop(['skin'], axis=1).to_numpy()
+
+    skin_gmm = GaussianMixture(n_components=k, covariance_type='full').fit(skin_data)
+    not_skin_gmm = GaussianMixture(n_components=k, covariance_type='full').fit(not_skin_data)
 
     model_name = "InceptionV3_augmented2"
 
@@ -33,8 +95,8 @@ if __name__ == '__main__':
 
     # folder = ""
     # folder = "/home_testing"
-    # folder = "/larcc_test_1"
-    folder = "/astra"
+    folder = "/larcc_test_1"
+    # folder = "/astra"
     # folder = "/larcc_test_1/blurred_33_33"
 
     total_images = 0
@@ -81,14 +143,17 @@ if __name__ == '__main__':
 
             if pd.cv_image_detected_left is not None:
                 frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
-                #
+
+                # frame = remove_bg(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), skin_gmm, not_skin_gmm)
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 # frame = cv2.fastNlMeansDenoisingColored(frame, None, 10, 21, 7, 21)
 
                 # frame = cv2.flip(pd.cv_image_detected_right, 1)
 
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
                 cv2.imshow("test", frame)
-                # cv2.waitKey(5)
+                cv2.waitKey(5)
 
                 dic_test["gesture"].append(g)
                 dic_test["image name"].append(file)
@@ -138,7 +203,7 @@ if __name__ == '__main__':
     print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
     print(f"Tested with: {count_false + count_true}")
 
-    df = pandas.DataFrame(dic_test)
+    df = pdd.DataFrame(dic_test)
     df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset{folder}/{model_name}_test_results.csv")
 
     recall = recall_score(confusion_ground_truth, confusion_predictions, average=None)
