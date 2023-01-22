@@ -79,7 +79,7 @@ if __name__ == '__main__':
 
     model_name = "InceptionV3_augmented2"
 
-    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/network/{model_name}/myModel")
+    model = keras.models.load_model(ROOT_DIR + f"/hand_classification/models/{model_name}/myModel")
 
     dataset = "ASL"
 

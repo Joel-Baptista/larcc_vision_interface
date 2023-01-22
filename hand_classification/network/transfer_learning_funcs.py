@@ -1,8 +1,125 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, recall_score, \
+    precision_score, f1_score
+import pandas as pd
+from vision_config.vision_definitions import ROOT_DIR, exports, USERNAME
+import json
+
+
+def plot_confusion(ground_truth, predictions, labels):
+    """
+    Plots the confusion matrix of test results
+    Input:
+      ground_truth: List of the labeled ground truth.
+      predictions: List of the labeled model predictions
+      lables: List containing all labeled categories
+    Output:
+      None
+    """
+
+    cm = confusion_matrix(ground_truth, predictions, labels=labels)
+    blues = plt.cm.Blues
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp.plot(cmap=blues)
+
+    plt.show()
+
+
+def test_model(model, test_dataset, labels, test_folder, model_name):
+    """
+    Test the model using test images not used in the train
+    Input:
+      model: Tensorflow trained model
+      test_dataset: tf.keras.utils.image_dataset_from_directory object containing the test images
+      labels: List containing all labeled categories
+      test_folder: String containing the folder where the test data will be saved
+      model_name: String containing the name of the model tested
+    Output:
+      ground_truth: List containing the ground truth labels of the tested images
+      predcitions: List containing the predicted labels of the tested images
+      dic_results: Dictionary containing the evaluation metrics (accuracy, precision, recall, f1_score) of the test
+    """
+
+    count_true = 0
+    count_false = 0
+    ground_truth = []
+    confusion_predictions = []
+
+    dic_test = {"index": [],
+                "gesture": [],
+                "prediction": [],
+                }
+
+    for i, batch in enumerate(iter(test_dataset)):
+
+        image_batch = batch[0]
+        label_batch = batch[1]
+
+        predictions = model.predict(x=np.array(image_batch), verbose=2)
+
+        for j, prediction in enumerate(predictions):
+
+            index = j + len(image_batch) * i
+
+            dic_test["index"].append(index)
+            dic_test["prediction"].append(labels[np.argmax(prediction)])
+            dic_test["gesture"].append(labels[np.argmax(label_batch[j])])
+
+            confusion_predictions.append(labels[np.argmax(prediction)])
+            ground_truth.append(labels[np.argmax(label_batch[j])])
+
+            if np.argmax(prediction) == np.argmax(label_batch[j]):
+                count_true += 1
+            else:
+                count_false += 1
+
+    df = pd.DataFrame(dic_test)
+    df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset/{test_folder}/{model_name}_test_results.csv")
+
+    print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
+    print(f"Tested with: {count_false + count_true}")
+
+    recall = recall_score(ground_truth, confusion_predictions, average=None)
+    precision = precision_score(ground_truth, confusion_predictions, average=None)
+    f1 = f1_score(ground_truth, confusion_predictions, average=None)
+
+    dic_results = {"accuracy": accuracy_score(ground_truth, confusion_predictions), "precision": {},
+                   "recall": {}, "f1": {}}
+
+    for i, label in enumerate(labels):
+        print(i)
+        dic_results["recall"][label] = recall[i]
+        dic_results["precision"][label] = precision[i]
+        dic_results["f1"][label] = f1[i]
+
+    dic_results["recall"]["average"] = np.mean(recall)
+    dic_results["precision"]["average"] = np.mean(precision)
+    dic_results["f1"]["average"] = np.mean(f1)
+
+    print(accuracy_score(ground_truth, confusion_predictions))
+    print(recall_score(ground_truth, confusion_predictions, average=None))
+    print(precision_score(ground_truth, confusion_predictions, average=None))
+    print(f1_score(ground_truth, confusion_predictions, average=None))
+
+    print(dic_results)
+
+    with open(f"/home/{USERNAME}/Datasets/Larcc_dataset/{test_folder}/{model_name}_results.json", 'w') as outfile:
+        json.dump(dic_results, outfile)
+
+    return ground_truth, confusion_predictions, dic_results
 
 
 def plot_curves(history):
+    """
+    Plot the validation accuracy and loss of the train
+    Input:
+        history: TensorFlow object returned by the model.fit function
+    Output:
+        None
+    """
+
     acc = history.history['accuracy']
     val_acc = history.history['val_accuracy']
 
@@ -29,6 +146,7 @@ def plot_curves(history):
 
     plt.show()
 
+
 def get_bottom_top_model(model, layer_name):
     layer = model.get_layer(layer_name)
     bottom_input = tf.keras.Input(model.input_shape[1:])
@@ -49,8 +167,10 @@ def get_bottom_top_model(model, layer_name):
     top_model = tf.keras.Model(top_input, top_output)
 
     return bottom_model, top_model
+
+
 def split_keras_model(model, freeze_percent):
-    '''
+    """
     Input:
       model: A pre-trained Keras Sequential model
       index: The index of the layer where we want to split the model
@@ -58,7 +178,7 @@ def split_keras_model(model, freeze_percent):
       model1: From layer 0 to index
       model2: From index+1 layer to the output of the original model
     The index layer will be the last layer of the model_1 and the same shape of that layer will be the input layer of the model_2
-    '''
+    """
 
     index = int(freeze_percent * len(model.layers))
     # Creating the first part...

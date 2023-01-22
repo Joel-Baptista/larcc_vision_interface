@@ -29,7 +29,7 @@ class TransferLearning:
         self.learning_rate = 0.0001
         self.val_split = 0.3
 
-        with open(ROOT_DIR + '/hand_classification/config/transfer_learning.json') as json_file:
+        with open(config_path) as json_file:
             self.config = json.load(json_file)
 
     def load_data(self, train_dir_path: str, test_dir_path: str):
@@ -41,18 +41,14 @@ class TransferLearning:
                                                                     label_mode='categorical')
 
         test_dataset = tf.keras.utils.image_dataset_from_directory(test_dir_path,
-                                                                   shuffle=True,
+                                                                   shuffle=False,
                                                                    batch_size=self.BATCH_SIZE,
                                                                    image_size=self.IMG_SIZE,
                                                                    label_mode='categorical')
 
-        # train_batches = tf.data.experimental.cardinality(train_dataset)
-        # validation_dataset = train_dataset.take(train_batches // 5)
-
         AUTOTUNE = tf.data.AUTOTUNE
 
         train_dataset = train_dataset.prefetch(buffer_size=AUTOTUNE)
-        # validation_dataset = validation_dataset.prefetch(buffer_size=AUTOTUNE)
         test_dataset = test_dataset.prefetch(buffer_size=AUTOTUNE)
 
         print('Number of train batches: %d' % tf.data.experimental.cardinality(train_dataset))
@@ -83,11 +79,7 @@ class TransferLearning:
                 image_batch = batch[0]
                 label_batch = batch[1]
 
-                # new_image_batch = tf.image.rgb_to_hsv(image_batch)
-
-                # image_batch, label_batch = next(iter(test_dataset))
                 feature_batch_average = feature_extractor(image_batch)
-                # feature_batch_average = feature_extractor(new_image_batch)
                 print(i)
                 if extracted_features is None:
                     extracted_features = feature_batch_average.numpy()
@@ -163,14 +155,15 @@ class TransferLearning:
 
         outputs = decision_model(base_model.outputs)
 
-        trained_model = tf.keras.Model(base_model.inputs, outputs)
-        trained_model.summary()
+        model = tf.keras.Model(base_model.inputs, outputs)
+        model.summary()
 
         trained_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
                               loss=tf.keras.losses.CategoricalCrossentropy(),
                               metrics=['accuracy'])
 
-        trained_model.save(ROOT_DIR + f"/hand_classification/network/{self.model_name}/myModel")
+        model.save(ROOT_DIR + f"/hand_classification/models/{self.model_name}/myModel")
+
         # decision_model.save(ROOT_DIR + f"/hand_classification/network/{model_name}_decision/myModel")
 
         # training_stats = {"train_samples": extracted_features.shape[0],
@@ -186,6 +179,8 @@ class TransferLearning:
         # with open(ROOT_DIR + f"/hand_classification/network/{self.model_name}/training_data.json", "w") as outfile:
         #     outfile.write(user_data_json)
 
+        return model
+
 
 if __name__ == '__main__':
 
@@ -194,22 +189,28 @@ if __name__ == '__main__':
     parser.add_argument('-lf', '--load_features', action='store_true')
     args = vars(parser.parse_args())
 
+    folder = "testing"
+
     transfer_learning = TransferLearning(ROOT_DIR + '/hand_classification/config/transfer_learning.json')
 
     model_freeze, model_train = transfer_learning.create_model()
 
     train_data, test_data = \
         transfer_learning.load_data(train_dir_path=f"/home/{USERNAME}/Datasets/ASL/train_bg_removed",
-                                    test_dir_path=f"/home/{USERNAME}/Datasets/ASL/test")
+                                    test_dir_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/{folder}")
 
-    features, labels = transfer_learning.get_features(model_freeze, train_data, args['load_features'])
+    features_train, labels_train = transfer_learning.get_features(model_freeze, train_data, args['load_features'])
 
-    model_train, train_history = transfer_learning.train_model(model_train, features, labels)
+    model_train, train_history = transfer_learning.train_model(model_train, features_train, labels_train)
 
-    transfer_learning.save_model(model_freeze, model_train)
+    trained_model = transfer_learning.save_model(model_freeze, model_train)
 
     plot_curves(train_history)
 
+    ground_truth, predictions, results = test_model(trained_model, test_data, ["A", "F", "L", "Y"],
+                                                    folder, transfer_learning.model_name)
+
+    plot_confusion(ground_truth, predictions, ["A", "F", "L", "Y"])
 
     # <=================================================================================================>
     # <====================================DATASET AUGMENTATION=========================================>
