@@ -135,24 +135,30 @@ def main():
     ontrackbarmaxr(255)
 
     # <==========================================  COLOR SEGMENTATION RESULTS  ========================================>
-    gestures = ["L", "Y"]
+    gestures = ["A", "F", "L", "Y"]
 
     count = 0
     for g in gestures:
 
-        res = os.listdir(f"/home/{USERNAME}/Datasets/ASL/train/{g}")
+        res = os.listdir(f"/home/{USERNAME}/Datasets/test_dataset/kinect/detected/wrong/{g}")
 
         num_list = []
         for file in res:
+            if "bg" in file:
+                continue
+
             num = int(''.join(filter(lambda i: i.isdigit(), file)))
             num_list.append(num)
 
         list1, list2 = zip(*sorted(zip(num_list, res)))
 
         for file in list2:
+            if "bg" in file:
+                continue
+
             count += 1
 
-            frame_original = cv2.imread(f"/home/{USERNAME}/Datasets/ASL/train/{g}/{file}")
+            frame_original = cv2.imread(f"/home/{USERNAME}/Datasets/test_dataset/kinect/detected/wrong/{g}/{file}")
 
             cv2.imshow('Original', frame_original)  # Display Image from the Camera
             frame = 127 * rgb2yiq(cv2.cvtColor(frame_original, cv2.COLOR_BGR2RGB))
@@ -193,7 +199,7 @@ def main():
                     break
 
                 if key == ord("s"):
-                    cv2.imwrite(f"/home/{USERNAME}/Datasets/ASL/train_bg_removed/{g}/{file}", segmented_image)
+                    cv2.imwrite(f"/home/{USERNAME}/Datasets/test_dataset/kinect/detected/wrong/{g}/bg/{file}", segmented_image)
                     print(f"{file} save!")
                     break
 

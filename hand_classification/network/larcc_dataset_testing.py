@@ -94,8 +94,8 @@ if __name__ == '__main__':
                 }
 
     # folder = ""
-    # folder = "/home_testing"
-    folder = "/larcc_test_1"
+    folder = "/home_testing"
+    # folder = "/larcc_test_1"
     # folder = "/astra"
     # folder = "/larcc_test_1/blurred_33_33"
 
@@ -137,12 +137,15 @@ if __name__ == '__main__':
             # ground_truth.append(np.array(ground_truth_array))
             # #
             cv2.imshow("Original", img)
-            pd.cv_image = copy.deepcopy(img)
-            pd.detect_pose()
-            pd.find_hands(x_lim=100, y_lim=100)
+            # pd.cv_image = copy.deepcopy(img)
+            # pd.detect_pose()
+            # pd.find_hands(x_lim=100, y_lim=100)
+
+            pd.cv_image_detected_left = img
 
             if pd.cv_image_detected_left is not None:
-                frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
+                frame = img
+                # frame = cv2.resize(pd.cv_image_detected_left, (200, 200), interpolation=cv2.INTER_CUBIC)
 
                 # frame = remove_bg(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), skin_gmm, not_skin_gmm)
 

@@ -10,15 +10,16 @@ import cv2
 if __name__ == '__main__':
     aug_data = {}
     dataset = "ASL"
+    augmentation = "bg_removed_augmented"
     gestures = ["A", "F", "L", "Y"]
     # gestures = ["G1", "G2", "G5", "G6"]
 
-    if not os.path.exists(f"/home/{USERNAME}/Datasets/{dataset}/augmented"):
-        os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/augmented")
+    if not os.path.exists(f"/home/{USERNAME}/Datasets/{dataset}/{augmentation}"):
+        os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/{augmentation}")
 
     for gesture in gestures:
-        if not os.path.exists(f"/home/{USERNAME}/Datasets/{dataset}/augmented/{gesture}"):
-            os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/augmented/{gesture}")
+        if not os.path.exists(f"/home/{USERNAME}/Datasets/{dataset}/{augmentation}/{gesture}"):
+            os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/{augmentation}/{gesture}")
 
     print("Augmented Folder created")
 
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     for j in range(0, 2):
         for gesture in gestures:
 
-            data_path = f"/home/{USERNAME}/Datasets/{dataset}/train/{gesture}"
+            data_path = f"/home/{USERNAME}/Datasets/{dataset}/train_bg_removed/{gesture}"
             res = os.listdir(data_path)
 
             num_samples = int(2.5 * len(res))
@@ -75,7 +76,7 @@ if __name__ == '__main__':
             images_aug = seq(images=images)
 
             for i, image in enumerate(images_aug):
-                cv2.imwrite(f"/home/{USERNAME}/Datasets/{dataset}/augmented_blur/{gesture}/image{j * len(res) + i}.png", image)
+                cv2.imwrite(f"/home/{USERNAME}/Datasets/{dataset}/{augmentation}/{gesture}/image{j * len(res) + i}.png", image)
 
             print(f"Gesture {gesture} augmented")
 

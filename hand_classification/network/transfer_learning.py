@@ -22,7 +22,7 @@ class TransferLearning:
 
         self.base_model = "InceptionV3"
         self.pooling = "MaxPooling"
-        self.model_name = f"{self.base_model}_bg_removed"
+        self.model_name = f"{self.base_model}"
         self.training_epochs = 200
         self.training_batch_size = 2000
         self.training_patience = 10
@@ -38,13 +38,15 @@ class TransferLearning:
                                                                     shuffle=True,
                                                                     batch_size=self.BATCH_SIZE,
                                                                     image_size=self.IMG_SIZE,
-                                                                    label_mode='categorical')
+                                                                    label_mode='categorical',
+                                                                    color_mode='rgb')
 
         test_dataset = tf.keras.utils.image_dataset_from_directory(test_dir_path,
                                                                    shuffle=False,
                                                                    batch_size=self.BATCH_SIZE,
                                                                    image_size=self.IMG_SIZE,
-                                                                   label_mode='categorical')
+                                                                   label_mode='categorical',
+                                                                   color_mode='rgb')
 
         AUTOTUNE = tf.data.AUTOTUNE
 
@@ -158,9 +160,9 @@ class TransferLearning:
         model = tf.keras.Model(base_model.inputs, outputs)
         model.summary()
 
-        trained_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
-                              loss=tf.keras.losses.CategoricalCrossentropy(),
-                              metrics=['accuracy'])
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
+                      loss=tf.keras.losses.CategoricalCrossentropy(),
+                      metrics=['accuracy'])
 
         model.save(ROOT_DIR + f"/hand_classification/models/{self.model_name}/myModel")
 
@@ -189,15 +191,18 @@ if __name__ == '__main__':
     parser.add_argument('-lf', '--load_features', action='store_true')
     args = vars(parser.parse_args())
 
-    folder = "testing"
+    folder = "kinect/bg_removed"
 
     transfer_learning = TransferLearning(ROOT_DIR + '/hand_classification/config/transfer_learning.json')
+
+    transfer_learning.base_model = "InceptionV3"
+    transfer_learning.model_name = f"{transfer_learning.base_model}_bg_removed"
 
     model_freeze, model_train = transfer_learning.create_model()
 
     train_data, test_data = \
-        transfer_learning.load_data(train_dir_path=f"/home/{USERNAME}/Datasets/ASL/train_bg_removed",
-                                    test_dir_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/{folder}")
+        transfer_learning.load_data(train_dir_path=f"/home/{USERNAME}/Datasets/ASL/bg_removed_augmented",
+                                    test_dir_path=f"/home/{USERNAME}/Datasets/test_dataset/{folder}")
 
     features_train, labels_train = transfer_learning.get_features(model_freeze, train_data, args['load_features'])
 

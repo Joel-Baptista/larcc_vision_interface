@@ -1,3 +1,14 @@
+#!/usr/bin/env python3
+from vision_config.vision_definitions import ROOT_DIR, USERNAME
+import os
+import json
+import imgaug.augmenters as iaa
+import imgaug as ia
+import numpy as np
+import cv2
+import os
+
+import cv2
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,11 +63,30 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
                 "prediction": [],
                 }
 
+    if not os.path.exists(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong"):
+        os.mkdir(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong")
+        for label in labels:
+            os.mkdir(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong/{label}")
+
     for i, batch in enumerate(iter(test_dataset)):
 
         image_batch = batch[0]
         label_batch = batch[1]
+        #
+        # buffer = []
+        #
+        # for image in image_batch:
+        #     # print(np.array(image)[1, 1:5, :].astype(np.uint8))
+        #     cv2.imshow("Before", np.array(image).astype(np.uint8))
+        #
+        #     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        #     # image = np.array(image).astype(np.uint8)
+        #     # print(image[1, 1:5, :].astype(np.uint8))
+        #     cv2.imshow("After", np.array(image).astype(np.uint8))
+        #     cv2.waitKey(1)
+        #     buffer.append(image)
 
+        # predictions = model.predict(x=np.array(buffer), verbose=2)
         predictions = model.predict(x=np.array(image_batch), verbose=2)
 
         for j, prediction in enumerate(predictions):
@@ -74,9 +104,12 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
                 count_true += 1
             else:
                 count_false += 1
+                cv2.imwrite(f"/home/{USERNAME}/Datasets/test_dataset/"
+                            f"{test_folder}/wrong/{labels[np.argmax(prediction)]}"
+                            f"/image{index}.png", cv2.cvtColor(np.array(image_batch[j]), cv2.COLOR_RGB2BGR))
 
     df = pd.DataFrame(dic_test)
-    df.to_csv(f"/home/{USERNAME}/Datasets/Larcc_dataset/{test_folder}/{model_name}_test_results.csv")
+    df.to_csv(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/{model_name}_test_results.csv")
 
     print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
     print(f"Tested with: {count_false + count_true}")
@@ -105,7 +138,7 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
 
     print(dic_results)
 
-    with open(f"/home/{USERNAME}/Datasets/Larcc_dataset/{test_folder}/{model_name}_results.json", 'w') as outfile:
+    with open(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/{model_name}_results.json", 'w') as outfile:
         json.dump(dic_results, outfile)
 
     return ground_truth, confusion_predictions, dic_results
