@@ -14,8 +14,8 @@ if __name__ == '__main__':
     df = df.drop(df[df.skin == 2].index)
     print(df)
 
-    bg_dataset_path = f"/home/{USERNAME}/Datasets/ASL/gmm_background/"
-    fg_dataset_path = f"/home/{USERNAME}/Datasets/ASL/gmm_foreground/"
+    bg_dataset_path = f"/home/{USERNAME}/Datasets/test_dataset/gmm/gmm_background/"
+    fg_dataset_path = f"/home/{USERNAME}/Datasets/test_dataset/gmm/gmm_foreground/"
 
     res_bg = os.listdir(bg_dataset_path)
     res_fg = os.listdir(fg_dataset_path)
@@ -83,9 +83,11 @@ if __name__ == '__main__':
             dic_bg["B"].append(b[i])
             dic_bg["skin"].append(1)
 
-    df = pd.DataFrame(dic_bg)
+    new_df = pd.DataFrame(dic_bg)
+    df = pd.concat([df, new_df])
+    # df = new_df
 
-    df.to_csv(f"/home/{USERNAME}/Datasets/ASL/Skin_NonSkin.txt")
+    df.to_csv(f"/home/{USERNAME}/Datasets/test_dataset/gmm/Skin_NonSkin.txt")
 
     print(df)
 

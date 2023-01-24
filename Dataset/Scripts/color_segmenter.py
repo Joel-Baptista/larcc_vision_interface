@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import copy
 import os
+import pandas as pd
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Authors: Beatriz Borges, Joel Baptista, José Cozinheiro e Tiago Fonte
@@ -16,6 +17,8 @@ import numpy as np
 import json
 from colorama import Back, Fore, Style
 from skimage.color import rgb2ycbcr, gray2rgb, rgb2yiq
+from sklearn.mixture import GaussianMixture
+
 from vision_config.vision_definitions import USERNAME
 
 # <=================================================  Global Variables  ===============================================>
@@ -33,12 +36,12 @@ bias = 127
 # Define trackbars' functions
 def ontrackbarminb(minb):
     global minimumb
-    minimumb = minb - bias
+    minimumb = minb
 
 
 def ontrackbarmaxb(maxb):
     global maximumb
-    maximumb = maxb - bias
+    maximumb = maxb
 
 
 def ontrackbarming(ming):
@@ -61,7 +64,14 @@ def ontrackbarmaxr(maxr):
     maximumr = maxr - bias
 
 
-def get_largest_item(mask):
+def get_largest_item(mask, d=2, e=1):
+
+    # pad = cv2.copyMakeBorder(mask, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=255)
+    # pad[pad.shape[0] - 1, :] = 0
+    # h, w = pad.shape
+    # mask = np.zeros([h + 2, w + 2], np.uint8)
+    # img_floodfill = cv2.floodFill(pad, mask, (0, 0), 0, (5), (0), flags=8)[1]
+    # mask = img_floodfill[1:h - 1, 1:w - 1]
 
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     largest_mask = np.zeros(mask.shape)
@@ -77,7 +87,8 @@ def get_largest_item(mask):
     kernel = np.ones((3, 3), np.uint8)
 
     largest_mask = cv2.drawContours(largest_mask, [largest_item], -1, 255, thickness=-1)
-    largest_mask = cv2.dilate(largest_mask, kernel)
+    largest_mask = cv2.dilate(largest_mask, kernel, iterations=d)
+    largest_mask = cv2.erode(largest_mask, kernel, iterations=e)
     # largest_mask = cv2.fillPoly(largest_mask, pts=largest_item, color=255)
     # largest_mask = cv2.floodFill(largest_mask, largest_item, color=255)
 
@@ -135,6 +146,24 @@ def main():
     ontrackbarmaxr(255)
 
     # <==========================================  COLOR SEGMENTATION RESULTS  ========================================>
+
+    df = pd.read_csv(f"/home/{USERNAME}/Datasets/test_dataset/gmm/Skin_NonSkin.txt", index_col=0)
+    df.columns = ['B', 'G', 'R', 'skin']
+    df['Cb'] = np.round(128 - .168736 * df.R - .331364 * df.G +
+                        .5 * df.B).astype(int)
+    # df['Cr'] = np.round(128 + .5 * df.R - .418688 * df.G -
+    #                     .081312 * df.B).astype(int)
+    df['I'] = np.round(.596 * df.R - .275 * df.G -
+                       .321 * df.B).astype(int)
+    df.drop(['B', 'G', 'R'], axis=1, inplace=True)
+    k = 4
+    print(df)
+    skin_data = df[df.skin == 1].drop(['skin'], axis=1).to_numpy()
+    not_skin_data = df[df.skin == 2].drop(['skin'], axis=1).to_numpy()
+
+    skin_gmm = GaussianMixture(n_components=k, covariance_type='full').fit(skin_data)
+    not_skin_gmm = GaussianMixture(n_components=k, covariance_type='full').fit(not_skin_data)
+
     gestures = ["A", "F", "L", "Y"]
 
     count = 0
@@ -161,8 +190,10 @@ def main():
             frame_original = cv2.imread(f"/home/{USERNAME}/Datasets/test_dataset/kinect/detected/wrong/{g}/{file}")
 
             cv2.imshow('Original', frame_original)  # Display Image from the Camera
-            frame = 127 * rgb2yiq(cv2.cvtColor(frame_original, cv2.COLOR_BGR2RGB))
-            # frame = cv2.cvtColor(frame_original, cv2.COLOR_BGR2HSV)
+
+            frame = cv2.fastNlMeansDenoisingColored(frame_original, None, 1, 10, 5, 21)
+            frame_ycbcr = 127 * rgb2yiq(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
             while True:
                 # Achieve Ranges for each Value of RGB Channels
@@ -171,26 +202,47 @@ def main():
                                      'R': {'min': minimumr, 'max': maximumr}}}
 
                 # Convert Ranges Dictionary into Numpy Arrays
-                mins = np.array([ranges['limits']['B']['min'], ranges['limits']['G']['min'], ranges['limits']['R']['min']])
-                maxs = np.array([ranges['limits']['B']['max'], ranges['limits']['G']['max'], ranges['limits']['R']['max']])
+                mins = np.array([0, ranges['limits']['G']['min'], ranges['limits']['R']['min']])
+                maxs = np.array([255, ranges['limits']['G']['max'], ranges['limits']['R']['max']])
                 # print(mins)
                 # print(maxs)
                 # print(np.max(frame))
                 # print(np.min(frame))
                 # Create Mask for Color Segmentation
-                mask = cv2.inRange(frame, mins, maxs)
+
+                mask = cv2.inRange(frame_ycbcr, mins, maxs)
+                mask_hsv = cv2.inRange(frame_hsv, (minimumb, 0, 0), (maximumb, 255, 255))
 
                 mask2 = get_largest_item(mask)
+                mask_hsv2 = get_largest_item(mask_hsv)
+
+                proc_image1 = rgb2ycbcr(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))[:, :, 1]
+                proc_image2 = 255 * rgb2yiq(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))[:, :, 1]
+                proc_image = np.reshape(cv2.merge([proc_image1, proc_image2]), (-1, 2))
+
+                skin_score = skin_gmm.score_samples(proc_image)
+                not_skin_score = not_skin_gmm.score_samples(proc_image)
+                result = skin_score > not_skin_score
+
+                mask_gmm = result.reshape(frame.shape[0], frame.shape[1]).astype(np.uint8) * 255
+                mask_gmm = get_largest_item(mask_gmm, 3, 1)
+
+                mask2 = cv2.bitwise_and(mask_hsv2, mask2)
+                mask2 = cv2.bitwise_and(mask2, mask_gmm)
 
                 segmented_image = copy.deepcopy(frame_original)
                 segmented_image[mask2 == 0] = [0, 0, 0]
 
                 # Apply and show Created Mask in Color Segmentation Window (600 x 600)
-                cv2.imshow('Segmented', mask)
-                cv2.imshow('Largest Segmented', segmented_image)
                 cv2.namedWindow('Segmented', cv2.WINDOW_NORMAL)
                 cv2.resizeWindow('Segmented', 600, 600)
+                cv2.namedWindow('Largest Segmented', cv2.WINDOW_NORMAL)
+                cv2.resizeWindow('Largest Segmented', 600, 600)
 
+                cv2.imshow('Segmented', mask2)
+                cv2.imshow('Mask HSV', mask_hsv2)
+                cv2.imshow('Mask GMM', mask_gmm)
+                cv2.imshow('Largest Segmented', segmented_image)
                 # <======================================  SAVE / NOT SAVE PROGRESS  =========================================>
 
                 key = cv2.waitKey(5)  # Wait a Key to stop the Program

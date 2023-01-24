@@ -5,8 +5,8 @@ from vision_config.vision_definitions import ROOT_DIR, USERNAME
 
 if __name__ == '__main__':
 
-    model_name = "InceptionV3"
-    folder = "kinect/wrong_classified/normal"
+    model_name = "InceptionV3_augmented2"
+    folder = "kinect/wrong_classified/gimp/bg_changed"
 
     test_dir_path = f"/home/{USERNAME}/Datasets/test_dataset/{folder}"
     model = keras.models.load_model(ROOT_DIR + f"/hand_classification/models/{model_name}/myModel")
