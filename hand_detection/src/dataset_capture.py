@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+
 import rospy
 import cv2
 from cv_bridge import CvBridge
@@ -13,9 +15,9 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=5, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/astra"):
-        # rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
-        rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
+    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect"):
+        rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
+        # rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
 
         self.frame = None
         self.bridge = CvBridge()
@@ -53,11 +55,12 @@ class DatasetCapture:
 
             if not record and len(buffer) > 0:
                 classification = input("Input image label: ")
-
+                res = os.listdir(f"{save_path}/{str(classification).upper()}")
+                shift = len(res)
                 print("Start saving images")
                 for i, image in enumerate(buffer):
                     if i <= len(buffer) - fps:
-                        cv2.imwrite(f"{save_path}/{str(classification).upper()}/image{i}.png", image)
+                        cv2.imwrite(f"{save_path}/{str(classification).upper()}/image{i+shift}.png", image)
 
                 buffer = []
                 print("Images Saved")
@@ -97,9 +100,9 @@ class DatasetCapture:
 if __name__ == '__main__':
     rospy.init_node("dataset_creation", anonymous=True)
     dc = DatasetCapture()
-    try:
-        rospy.spin()
-    except KeyboardInterrupt:
-        print("Shutting down")
+    # try:
+    #     rospy.spin()
+    # except KeyboardInterrupt:
+    #     print("Shutting down")
 
     cv2.destroyAllWindows()

@@ -38,14 +38,14 @@ class TransferLearning:
                                                                     shuffle=True,
                                                                     batch_size=self.BATCH_SIZE,
                                                                     image_size=self.IMG_SIZE,
-                                                                    label_mode='int',
+                                                                    label_mode='categorical',
                                                                     color_mode='rgb')
 
         test_dataset = tf.keras.utils.image_dataset_from_directory(test_dir_path,
                                                                    shuffle=False,
                                                                    batch_size=self.BATCH_SIZE,
                                                                    image_size=self.IMG_SIZE,
-                                                                   label_mode='int',
+                                                                   label_mode='categorical',
                                                                    color_mode='rgb')
 
         AUTOTUNE = tf.data.AUTOTUNE
@@ -191,18 +191,22 @@ if __name__ == '__main__':
     parser.add_argument('-lf', '--load_features', action='store_true')
     args = vars(parser.parse_args())
 
-    folder = "kinect/bg_removed"
+    folder = "larcc_test_1/detected"
+    dataset = "Larcc_dataset"
 
     transfer_learning = TransferLearning(ROOT_DIR + '/hand_classification/config/transfer_learning.json')
+    transfer_learning.IMG_SIZE = (224, 224)
+    transfer_learning.BATCH_SIZE = 100
+    transfer_learning.training_epochs = 300
 
     transfer_learning.base_model = "InceptionV3"
-    transfer_learning.model_name = f"{transfer_learning.base_model}_bg_removed"
+    transfer_learning.model_name = f"{transfer_learning.base_model}_larcc"
 
     model_freeze, model_train = transfer_learning.create_model()
 
     train_data, test_data = \
-        transfer_learning.load_data(train_dir_path=f"/home/{USERNAME}/Datasets/ASL/bg_removed_augmented",
-                                    test_dir_path=f"/home/{USERNAME}/Datasets/test_dataset/{folder}")
+        transfer_learning.load_data(train_dir_path=f"/home/{USERNAME}/Datasets/ASL/train_kinect",
+                                    test_dir_path=f"/home/{USERNAME}/Datasets/{dataset}/{folder}")
 
     features_train, labels_train = transfer_learning.get_features(model_freeze, train_data, args['load_features'])
 
@@ -213,7 +217,7 @@ if __name__ == '__main__':
     plot_curves(train_history)
 
     ground_truth, predictions, results = test_model(trained_model, test_data, ["A", "F", "L", "Y"],
-                                                    folder, transfer_learning.model_name)
+                                                    folder, transfer_learning.model_name, dataset)
 
     plot_confusion(ground_truth, predictions, ["A", "F", "L", "Y"])
 
