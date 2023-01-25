@@ -30,7 +30,7 @@ def plot_confusion(ground_truth, predictions, labels):
       None
     """
 
-    cm = confusion_matrix(ground_truth, predictions, labels=labels)
+    cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='true')
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp.plot(cmap=blues)
@@ -38,7 +38,7 @@ def plot_confusion(ground_truth, predictions, labels):
     plt.show()
 
 
-def test_model(model, test_dataset, labels, test_folder, model_name):
+def test_model(model, test_dataset, labels, test_folder, model_name, dataset):
     """
     Test the model using test images not used in the train
     Input:
@@ -63,10 +63,10 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
                 "prediction": [],
                 }
 
-    if not os.path.exists(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong"):
-        os.mkdir(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong")
+    if not os.path.exists(f"/home/{USERNAME}/Datasets/{dataset}/{test_folder}/wrong"):
+        os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/{test_folder}/wrong")
         for label in labels:
-            os.mkdir(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/wrong/{label}")
+            os.mkdir(f"/home/{USERNAME}/Datasets/{dataset}/{test_folder}/wrong/{label}")
 
     for i, batch in enumerate(iter(test_dataset)):
 
@@ -88,9 +88,10 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
 
         # predictions = model.predict(x=np.array(buffer), verbose=2)
         predictions = model.predict(x=np.array(image_batch), verbose=2)
-
+        # print(label_batch)
         for j, prediction in enumerate(predictions):
 
+            # print(prediction)
             index = j + len(image_batch) * i
 
             dic_test["index"].append(index)
@@ -104,12 +105,12 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
                 count_true += 1
             else:
                 count_false += 1
-                cv2.imwrite(f"/home/{USERNAME}/Datasets/test_dataset/"
+                cv2.imwrite(f"/home/{USERNAME}/Datasets/{dataset}/"
                             f"{test_folder}/wrong/{labels[np.argmax(prediction)]}"
                             f"/image{index}.png", cv2.cvtColor(np.array(image_batch[j]), cv2.COLOR_RGB2BGR))
 
     df = pd.DataFrame(dic_test)
-    df.to_csv(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/{model_name}_test_results.csv")
+    df.to_csv(f"/home/{USERNAME}/Datasets/{dataset}/{test_folder}/{model_name}_test_results.csv")
 
     print(f"Accuracy: {round(count_true / (count_false + count_true) * 100, 2)}%")
     print(f"Tested with: {count_false + count_true}")
@@ -138,7 +139,7 @@ def test_model(model, test_dataset, labels, test_folder, model_name):
 
     print(dic_results)
 
-    with open(f"/home/{USERNAME}/Datasets/test_dataset/{test_folder}/{model_name}_results.json", 'w') as outfile:
+    with open(f"/home/{USERNAME}/Datasets/{dataset}/{test_folder}/{model_name}_results.json", 'w') as outfile:
         json.dump(dic_results, outfile)
 
     return ground_truth, confusion_predictions, dic_results

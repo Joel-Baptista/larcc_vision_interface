@@ -33,4 +33,4 @@ if __name__ == '__main__':
 
                 img_bg[mask == 0] = img[mask == 0]
 
-                cv2.imwrite(f"{path}/bg_changed/{g}/{bg}_{file}", img_bg)
+                cv2.imwrite(f"{path}/bg_changed_denoised/{g}/{bg}_{file}", img_bg)

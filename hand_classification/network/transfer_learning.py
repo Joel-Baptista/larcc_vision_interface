@@ -38,14 +38,14 @@ class TransferLearning:
                                                                     shuffle=True,
                                                                     batch_size=self.BATCH_SIZE,
                                                                     image_size=self.IMG_SIZE,
-                                                                    label_mode='categorical',
+                                                                    label_mode='int',
                                                                     color_mode='rgb')
 
         test_dataset = tf.keras.utils.image_dataset_from_directory(test_dir_path,
                                                                    shuffle=False,
                                                                    batch_size=self.BATCH_SIZE,
                                                                    image_size=self.IMG_SIZE,
-                                                                   label_mode='categorical',
+                                                                   label_mode='int',
                                                                    color_mode='rgb')
 
         AUTOTUNE = tf.data.AUTOTUNE
