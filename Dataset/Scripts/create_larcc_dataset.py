@@ -9,8 +9,8 @@ import copy
 if __name__ == '__main__':
 
     # dataset_path = f"/home/{USERNAME}/Datasets/ASL/test"
-    dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect"
-    saving_path = f"/home/{USERNAME}/Datasets/ASL/train_kinect"
+    dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect_test"
+    saving_path = f"/home/{USERNAME}/Datasets/ASL/test_kinect"
     gestures = ["A", "F", "L", "Y"]
     # gestures = ["L", "Y"]
     pd = PoseDetection()

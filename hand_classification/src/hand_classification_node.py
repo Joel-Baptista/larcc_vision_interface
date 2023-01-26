@@ -22,7 +22,7 @@ class HandClassificationNode:
 
         org = (0, 90)
         thickness = 1
-        font = 0.5
+        font = 1
         gestures = ["A", "F", "L", "Y"]
         # gestures = ["G1", "G2", "G5", "G6"]
 
@@ -43,7 +43,7 @@ class HandClassificationNode:
             if left_frame.shape != (200, 200, 3) or right_frame.shape != (200, 200, 3):
                 continue
 
-            im_array = np.asarray([left_frame, right_frame])
+            im_array = np.asarray([left_frame, cv2.flip(right_frame, 1)])
 
             prediction = self.model.predict(x=im_array, verbose=0)
             # print(prediction)
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     rospy.init_node("hand_classification", anonymous=True)
 
-    hc = HandClassificationNode(path=f"{ROOT_DIR}/hand_classification/network/Resnet50/")
+    hc = HandClassificationNode(path=f"{ROOT_DIR}/hand_classification/models/InceptionV3_larcc_contrastive/")
 
     try:
         rospy.spin()

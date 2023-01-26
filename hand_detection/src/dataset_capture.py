@@ -15,7 +15,7 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect"):
+    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect_test"):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
         # rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
 

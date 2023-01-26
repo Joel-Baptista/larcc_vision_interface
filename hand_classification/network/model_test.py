@@ -5,8 +5,8 @@ from vision_config.vision_definitions import ROOT_DIR, USERNAME
 
 if __name__ == '__main__':
 
-    model_name = "InceptionV3"
-    folder = "/test"
+    model_name = "InceptionV3_larcc_contrastive_256"
+    folder = "/test_kinect"
     dataset = "ASL"
 
     test_dir_path = f"/home/{USERNAME}/Datasets/{dataset}/{folder}"
@@ -14,8 +14,8 @@ if __name__ == '__main__':
 
     test_dataset = tf.keras.utils.image_dataset_from_directory(test_dir_path,
                                                                shuffle=False,
-                                                               batch_size=200,
-                                                               image_size=(200, 200),
+                                                               batch_size=100,
+                                                               image_size=(224, 224),
                                                                label_mode='categorical',
                                                                color_mode='rgb')
 

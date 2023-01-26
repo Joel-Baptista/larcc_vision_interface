@@ -31,6 +31,7 @@ def plot_confusion(ground_truth, predictions, labels):
     """
 
     cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='true')
+    cm = 100 * cm
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp.plot(cmap=blues)
