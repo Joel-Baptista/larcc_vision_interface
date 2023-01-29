@@ -1,6 +1,6 @@
 from tensorflow import keras
 import tensorflow as tf
-from hand_classification.network.transfer_learning_funcs import test_model, plot_confusion
+from hand_classification.network.tflow.transfer_learning_funcs import test_model, plot_confusion
 from vision_config.vision_definitions import ROOT_DIR, USERNAME
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_s
 import matplotlib.pyplot as plt
 import pandas as pdd
 from sklearn.mixture import GaussianMixture
-from hand_classification.network.transfer_learning_funcs import *
+from hand_classification.network.tflow.transfer_learning_funcs import *
 from skimage.color import rgb2ycbcr, gray2rgb, rgb2yiq
 
 

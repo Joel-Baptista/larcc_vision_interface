@@ -1,0 +1,36 @@
+FROM pytorch/pytorch:1.12.0-cuda11.3-cudnn8-runtime
+
+COPY requirements.txt /tmp/
+RUN pip install --requirement /tmp/requirements.txt
+
+RUN apt-get update
+# RUN apt-get install ffmpeg libsm6 libxext6  -y
+
+#RUN useradd -rm -d /home/deep -s /bin/bash -g root -G sudo -u 1001 deep
+
+#RUN useradd -ms /bin/bash deep
+#USER deep
+#WORKDIR /home/deep
+
+
+#USER deep 
+
+#RUN mkdir /home/deep/results
+#RUN mkdir /home/deep/results/curlad
+#RUN mkdir /home/deep/curlad
+
+WORKDIR /root
+
+RUN mkdir /root/Datasets
+RUN mkdir /root/Datasets/ASL
+RUN mkdir /root/Datasets/ASL/train
+RUN mkdir /root/Datasets/ASL/val
+RUN mkdir /root/network
+RUN mkdir /root/network/ptorch
+RUN mkdir /root/network/results
+
+ENV PYTHONPATH="/root/network/ptorch"
+
+ENV USER="deep"
+
+

@@ -4,8 +4,8 @@ import tensorflow_addons as tfa
 import numpy as np
 from tensorflow import keras
 from tensorflow.keras import layers
-from hand_classification.network.transfer_learning import TransferLearning
-from hand_classification.network.transfer_learning_funcs import plot_curves, plot_confusion, test_model
+from hand_classification.network.tflow.transfer_learning import TransferLearning
+from hand_classification.network.tflow.transfer_learning_funcs import plot_curves, plot_confusion, test_model
 from vision_config.vision_definitions import ROOT_DIR, USERNAME
 
 
