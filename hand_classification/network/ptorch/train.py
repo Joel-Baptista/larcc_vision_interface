@@ -6,14 +6,33 @@ import torchvision
 from torchvision import datasets, transforms
 import os
 import numpy as np
+import csv
+import argparse
 
 
 def main():
 
+    parser = argparse.ArgumentParser(
+                    prog = 'Pytorch Training',
+                    description = 'It trains a Pytorch model')
+    
+    parser.add_argument('-e', '--epochs', type=int, default=100, help='Number of epochs to train')
+    parser.add_argument('-d', '--device', type=str, default="cuda:1", help='Decive used for training')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.0001, help='Initial learning rate')
+    parser.add_argument('-bs', '--batch_size', type=int, default=256, help='Batch size for training')
+    parser.add_argument('-p', '--patience', type=int, default=None, help='Training patience')
+    
+
+    args = parser.parse_args()
+
+    if args.patience is None:
+        args.patience = args.epochs
+
+    print("Script's arguments: ",args)
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
 
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    print(device)
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    print("Training device: ", device)
 
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
@@ -44,16 +63,21 @@ def main():
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                             data_transforms[x])
                     for x in ['train', 'val', 'test']}
-    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=64,
-                                                shuffle=True, num_workers=2)
+    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=args.batch_size,
+                                                shuffle=True, num_workers=2, prefetch_factor=1)
                         for x in ['train', 'val', 'test']}
     dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val', 'test']}
     class_names = image_datasets['train'].classes
 
-    print(class_names)
+    print("Training classes: ",class_names)
 
-    model = InceptioV3_frozen(4)
-    num_epochs = 2
+    model = InceptioV3_frozen(4, args.learning_rate)
+    num_epochs = args.epochs
+
+    for child in model.children():
+        print(child)
+        print("----------------")
+
 
     model.to(device)
 
@@ -62,7 +86,10 @@ def main():
     # best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
     
-    history = {'train_loss': [], 'train_accuracy': [], 'val_loss': [], 'val_accuracy': []}
+    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
+    early_stopping_counter = 0
+    last_epoch_loss = np.inf
+    early_stopping = False
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
@@ -78,7 +105,6 @@ def main():
             running_loss = 0.0
             running_corrects = 0
 
-            epoch_accs = []
             # Iterate over data.
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
@@ -108,7 +134,7 @@ def main():
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
             history[f"{phase}_loss"].append(epoch_loss)
-            history[f"{phase}_accuracy"].append(epoch_acc)
+            history[f"{phase}_acc"].append(epoch_acc.item())
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
                 phase, epoch_loss, epoch_acc))
@@ -117,8 +143,24 @@ def main():
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
+            
+            if phase == 'val' and epoch_loss > last_epoch_loss:
+                early_stopping_counter += 1
+
+                if early_stopping_counter >= args.patience:
+                    print('Early stopping!')
+                    early_stopping = True
+                    break
+
+            elif phase == 'val' and epoch_loss <= last_epoch_loss:
+                early_stopping_counter = 0
+
+            last_epoch_loss = epoch_loss
 
         print()
+
+        if early_stopping is True:
+            break
 
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
@@ -128,8 +170,43 @@ def main():
     # load best model weights
     model.load_state_dict(best_model_wts)
 
-    FILE = "model.pth"
-    torch.save(model.state_dict(), os.path.join(data_dir, "results", FILE)) 
+    FILE = f"{model.name}.pth"
+    history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
+    history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
+    torch.save(best_model_wts, os.path.join(data_dir, "results", FILE)) 
+
+    with open(history_path, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
+        writer.writeheader()
+        for i in range(0, num_epochs):
+
+            row = {"epoch": i+1, 
+                   "train_loss": history[f"train_loss"][i], 
+                   "train_acc": history[f"train_acc"][i],
+                   "val_loss": history[f"val_loss"][i],
+                   "val_acc": history[f"val_acc"][i]}
+            
+            writer.writerow(row)
+
+    model.eval()
+    test_labels = []
+    test_preds = []
+
+    for inputs, labels in dataloaders["test"]:
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+
+        running_corrects += torch.sum(preds == labels.data)
+
+        test_labels.append(labels.cpu().numpy())
+        test_preds.append(preds.cpu().numpy())
+
+    test_acc = running_corrects.double() / dataset_sizes["test"]
+
+    print('Test Accuracy of the model on the {:.4f} test images: {:.4f}'.format(dataset_sizes["test"], 100 * test_acc))
 
 
 if __name__ == '__main__':

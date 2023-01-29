@@ -23,11 +23,14 @@ WORKDIR /root
 
 RUN mkdir /root/Datasets
 RUN mkdir /root/Datasets/ASL
-RUN mkdir /root/Datasets/ASL/train
-RUN mkdir /root/Datasets/ASL/val
+RUN mkdir /root/Datasets/ASL/kinect
+RUN mkdir /root/Datasets/ASL/kinect/train
+RUN mkdir /root/Datasets/ASL/kinect/val
+RUN mkdir /root/Datasets/ASL/kinect/test
+RUN mkdir /root/Datasets/ASL/kinect/results
 RUN mkdir /root/network
 RUN mkdir /root/network/ptorch
-RUN mkdir /root/network/results
+
 
 ENV PYTHONPATH="/root/network/ptorch"
 
