@@ -1,4 +1,4 @@
-from networks import InceptioV3_frozen
+from networks import InceptioV3_frozen, InceptioV3_unfrozen
 import torch
 import time
 import copy
@@ -19,7 +19,7 @@ def main():
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Number of epochs to train')
     parser.add_argument('-d', '--device', type=str, default="cuda:1", help='Decive used for training')
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.0001, help='Initial learning rate')
-    parser.add_argument('-bs', '--batch_size', type=int, default=256, help='Batch size for training')
+    parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for training')
     parser.add_argument('-p', '--patience', type=int, default=None, help='Training patience')
     
 
@@ -71,13 +71,20 @@ def main():
 
     print("Training classes: ",class_names)
 
-    model = InceptioV3_frozen(4, args.learning_rate)
+    model = InceptioV3_unfrozen(4, args.learning_rate)
     num_epochs = args.epochs
 
-    for child in model.children():
-        print(child)
-        print("----------------")
+    # for child in model.children():
+    #     print(child)
+    #     print("----------------")
+    if not os.path.exists(os.path.join(data_dir, "results", f"{model.name}")):
+        os.mkdir(os.path.join(data_dir, "results", f"{model.name}"))
 
+
+    FILE = f"{model.name}.pth"
+    history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
+    history_path = os.path.join(data_dir, "results", f"{model.name}",f"train_results_{model.name}.csv")
+    test_path = os.path.join(data_dir, "results", f"{model.name}", f"test_results_{model.name}.csv")
 
     model.to(device)
 
@@ -146,18 +153,37 @@ def main():
             
             if phase == 'val' and epoch_loss > last_epoch_loss:
                 early_stopping_counter += 1
-
+                print("Counter: ", early_stopping_counter)
                 if early_stopping_counter >= args.patience:
                     print('Early stopping!')
                     early_stopping = True
                     break
 
             elif phase == 'val' and epoch_loss <= last_epoch_loss:
+                print("Reset counter")
                 early_stopping_counter = 0
 
-            last_epoch_loss = epoch_loss
+            if phase == 'val':
+                last_epoch_loss = epoch_loss
 
         print()
+
+        if epoch % 10 == 0:
+            print("Checkpoint - Saving training data")
+            torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
+
+            with open(history_path, 'w') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
+                writer.writeheader()
+                for i in range(0, len(history["train_loss"])):
+
+                    row = {"epoch": i+1, 
+                        "train_loss": history[f"train_loss"][i], 
+                        "train_acc": history[f"train_acc"][i],
+                        "val_loss": history[f"val_loss"][i],
+                        "val_acc": history[f"val_acc"][i]}
+                    
+                    writer.writerow(row)
 
         if early_stopping is True:
             break
@@ -170,15 +196,13 @@ def main():
     # load best model weights
     model.load_state_dict(best_model_wts)
 
-    FILE = f"{model.name}.pth"
-    history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
-    history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
-    torch.save(best_model_wts, os.path.join(data_dir, "results", FILE)) 
+
+    torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
     with open(history_path, 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
         writer.writeheader()
-        for i in range(0, num_epochs):
+        for i in range(0, len(history["train_loss"])):
 
             row = {"epoch": i+1, 
                    "train_loss": history[f"train_loss"][i], 
@@ -191,7 +215,7 @@ def main():
     model.eval()
     test_labels = []
     test_preds = []
-
+    running_corrects = 0
     for inputs, labels in dataloaders["test"]:
         inputs = inputs.to(device)
         labels = labels.to(device)
@@ -200,13 +224,26 @@ def main():
         _, preds = torch.max(outputs, 1)
 
         running_corrects += torch.sum(preds == labels.data)
+        
+        for i in range(0, len(labels)):
 
-        test_labels.append(labels.cpu().numpy())
-        test_preds.append(preds.cpu().numpy())
+            test_labels.append(labels[i].item())
+            test_preds.append(preds[i].item())
+
+    with open(test_path, 'w') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions"])
+        writer.writeheader()
+        for i in range(0, len(test_preds)):
+
+            row = {"labels": test_labels[i], 
+                    "predictions": test_preds[i]}
+            
+            writer.writerow(row)
+
 
     test_acc = running_corrects.double() / dataset_sizes["test"]
 
-    print('Test Accuracy of the model on the {:.4f} test images: {:.4f}'.format(dataset_sizes["test"], 100 * test_acc))
+    print('Test Accuracy of the model on the {:.0f} test images: {:.2f}'.format(dataset_sizes["test"], 100 * test_acc))
 
 
 if __name__ == '__main__':
