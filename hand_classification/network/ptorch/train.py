@@ -8,6 +8,18 @@ import os
 import numpy as np
 import csv
 import argparse
+# import matplotlib.pyplot as plt
+
+# def imshow(inp, title):
+#     """Imshow for Tensor."""
+#     mean = np.array([0.5, 0.5, 0.5])
+#     std = np.array([0.25, 0.25, 0.25])
+#     inp = inp.numpy().transpose((1, 2, 0))
+#     inp = std * inp + mean
+#     inp = np.clip(inp, 0, 1)
+#     plt.imshow(inp)
+#     plt.title(title)
+#     plt.show()
 
 
 def main():
@@ -21,7 +33,7 @@ def main():
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.0001, help='Initial learning rate')
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for training')
     parser.add_argument('-p', '--patience', type=int, default=None, help='Training patience')
-    
+    parser.add_argument('-a', '--augmentation', action='store_true', default=False, help='Augmentation')
 
     args = parser.parse_args()
 
@@ -33,6 +45,9 @@ def main():
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
+
+    model = InceptioV3_frozen(4, args.learning_rate)
+    num_epochs = args.epochs
 
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
@@ -59,6 +74,17 @@ def main():
         ]),
     }
 
+    if args.augmentation:
+        model.name = f"{model.name}_aug"
+        data_transforms['train'] = transforms.Compose([
+            transforms.Resize(299),
+            # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
+            # transforms.RandomHorizontalFlip(),
+            transforms.RandAugment(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+        ])
+
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
     image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                             data_transforms[x])
@@ -71,8 +97,14 @@ def main():
 
     print("Training classes: ",class_names)
 
-    model = InceptioV3_unfrozen(4, args.learning_rate)
-    num_epochs = args.epochs
+
+    # # Get a batch of training data
+    # inputs, classes = next(iter(dataloaders['train']))
+
+    # # Make a grid from batch
+    # out = torchvision.utils.make_grid(inputs)
+
+    # imshow(out, title=[class_names[x] for x in classes])
 
     # for child in model.children():
     #     print(child)
