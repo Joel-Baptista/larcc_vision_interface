@@ -46,7 +46,7 @@ def main():
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
 
-    model = InceptioV3_frozen(4, args.learning_rate)
+    model = InceptioV3_unfrozen(4, args.learning_rate)
     num_epochs = args.epochs
 
     mean = np.array([0.5, 0.5, 0.5])
@@ -115,8 +115,12 @@ def main():
 
     FILE = f"{model.name}.pth"
     history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
-    history_path = os.path.join(data_dir, "results", f"{model.name}",f"train_results_{model.name}.csv")
-    test_path = os.path.join(data_dir, "results", f"{model.name}", f"test_results_{model.name}.csv")
+    data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
+    history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
+    test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
+
+    if not os.path.exists(data_saving_path):
+        os.mkdir(data_saving_path)
 
     model.to(device)
 

@@ -21,8 +21,11 @@ class InceptioV3_frozen(nn.Module):
         self.model.dropout.p = 0.0
         self.model.fc = nn.Sequential(
             nn.Linear(self.model.fc.in_features, 1024),
+            nn.ReLU(),
             nn.Linear(1024, 512),
+            nn.ReLU(),
             nn.Linear(512, 256),
+            nn.ReLU(),
             nn.Linear(256, num_classes)
             )
         self.optimizer = torch.optim.Adam(self.model.fc.parameters(), lr=learning_rate)
@@ -50,8 +53,11 @@ class InceptioV3_unfrozen(nn.Module):
         self.model.dropout.p = 0.0
         self.model.fc = nn.Sequential(
             nn.Linear(self.model.fc.in_features, 1024),
+            nn.ReLU(),
             nn.Linear(1024, 512),
+            nn.ReLU(),
             nn.Linear(512, 256),
+            nn.ReLU(),
             nn.Linear(256, num_classes)
             )
         

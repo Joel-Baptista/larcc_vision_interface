@@ -5,13 +5,22 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import json
+import argparse
 
 if __name__ == '__main__':
 
-    model = "InceptionV3_unfrozen"
+    parser = argparse.ArgumentParser(
+                prog = 'Pytorch Training',
+                description = 'It trains a Pytorch model')
+
+    parser.add_argument('-p', '--plots', action='store_true', default=False, help='Plot train curves')
+    args = parser.parse_args()
+    
+    model = "InceptionV3_frozen"
+    test  = "test_kinect"
     labels = ["A", "F", "L", "Y"]
 
-    df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/test_results_{model}.csv")
+    df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/test_results_{model}.csv")
     
     ground_truth = []
     predictions = []
@@ -26,33 +35,8 @@ if __name__ == '__main__':
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp.plot(cmap=blues)
-    disp.figure_.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/cm.png")
+    disp.figure_.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/cm.png")
     
-    df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_results_{model}.csv")
-
-    acc = df['train_acc']
-    val_acc = df['val_acc']
-
-    loss = df['train_loss']
-    val_loss = df['val_loss']
-
-    plt.figure(figsize=(8, 8))
-    plt.subplot(2, 1, 1)
-    plt.plot(acc, label='Training Accuracy')
-    plt.plot(val_acc, label='Validation Accuracy')
-    plt.legend(loc='lower right')
-    plt.ylabel('Accuracy')
-    plt.ylim([min(plt.ylim()), 1])
-    plt.title('Training and Validation Accuracy')
-
-    plt.subplot(2, 1, 2)
-    plt.plot(loss, label='Training Loss')
-    plt.plot(val_loss, label='Validation Loss')
-    plt.legend(loc='upper right')
-    plt.ylabel('Cross Entropy')
-    plt.ylim([0, 1.0])
-    plt.title('Training and Validation Loss')
-    plt.xlabel('epoch')
 
 
     recall = recall_score(ground_truth, predictions, average=None)
@@ -73,12 +57,40 @@ if __name__ == '__main__':
 
     print(dic_results)
 
-    with open(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/metrics_{model}.json", 'w') as outfile:
+    with open(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/metrics_{model}.json", 'w') as outfile:
         json.dump(dic_results, outfile)
 
+    if args.plots:
+        df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_results_{model}.csv")
 
-    plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_curves.png")
+        acc = df['train_acc']
+        val_acc = df['val_acc']
+
+        loss = df['train_loss']
+        val_loss = df['val_loss']
+
+        plt.figure(figsize=(8, 8))
+        plt.subplot(2, 1, 1)
+        plt.plot(acc, label='Training Accuracy')
+        plt.plot(val_acc, label='Validation Accuracy')
+        plt.legend(loc='lower right')
+        plt.ylabel('Accuracy')
+        plt.ylim([min(plt.ylim()), 1])
+        plt.title('Training and Validation Accuracy')
+
+        plt.subplot(2, 1, 2)
+        plt.plot(loss, label='Training Loss')
+        plt.plot(val_loss, label='Validation Loss')
+        plt.legend(loc='upper right')
+        plt.ylabel('Cross Entropy')
+        plt.ylim([0, 1.0])
+        plt.title('Training and Validation Loss')
+        plt.xlabel('epoch')
+
+
+        plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/train_curves.png")
+    
     plt.show()
 
 
-    
+
