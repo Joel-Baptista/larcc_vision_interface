@@ -8,9 +8,10 @@ import os
 import numpy as np
 import csv
 import argparse
+from datasets import get_train_valid_loader
 # import matplotlib.pyplot as plt
 
-# def imshow(inp, title):
+# def imshow(inp):
 #     """Imshow for Tensor."""
 #     mean = np.array([0.5, 0.5, 0.5])
 #     std = np.array([0.25, 0.25, 0.25])
@@ -18,7 +19,6 @@ import argparse
 #     inp = std * inp + mean
 #     inp = np.clip(inp, 0, 1)
 #     plt.imshow(inp)
-#     plt.title(title)
 #     plt.show()
 
 
@@ -34,6 +34,7 @@ def main():
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for training')
     parser.add_argument('-p', '--patience', type=int, default=None, help='Training patience')
     parser.add_argument('-a', '--augmentation', action='store_true', default=False, help='Augmentation')
+    parser.add_argument('-v', '--version', type=str, default="", help='This string is added to the name of the model')
 
     args = parser.parse_args()
 
@@ -41,12 +42,12 @@ def main():
         args.patience = args.epochs
 
     print("Script's arguments: ",args)
-    data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
 
     model = InceptioV3_unfrozen(4, args.learning_rate)
+    model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
     mean = np.array([0.5, 0.5, 0.5])
@@ -85,26 +86,26 @@ def main():
             transforms.Normalize(mean, std)
         ])
 
-    data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
-                                            data_transforms[x])
-                    for x in ['train', 'val', 'test']}
-    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=args.batch_size,
-                                                shuffle=True, num_workers=2, prefetch_factor=1)
-                        for x in ['train', 'val', 'test']}
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val', 'test']}
-    class_names = image_datasets['train'].classes
+    data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
+    # image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
+    #                                         data_transforms[x])
+    #                 for x in ['train', 'val', 'test']}
+    # dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=args.batch_size,
+    #                                             shuffle=True, num_workers=2, prefetch_factor=1)
+    #                     for x in ['train', 'val', 'test']}
+    
+    train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
+        os.path.join(data_dir, "train"), 64, data_transforms, None, shuffle=True)
 
-    print("Training classes: ",class_names)
 
-
-    # # Get a batch of training data
+    dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
+    # Get a batch of training data
     # inputs, classes = next(iter(dataloaders['train']))
 
     # # Make a grid from batch
     # out = torchvision.utils.make_grid(inputs)
 
-    # imshow(out, title=[class_names[x] for x in classes])
+    # imshow(out)
 
     # for child in model.children():
     #     print(child)
@@ -208,6 +209,7 @@ def main():
             print("Checkpoint - Saving training data")
             torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
+            print("Data saved in : ", os.path.join(data_dir, "results", f"{model.name}"))
             with open(history_path, 'w') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
                 writer.writeheader()

@@ -3,6 +3,9 @@ import torch.nn as nn
 from torchvision.models import inception_v3, Inception_V3_Weights
 from torchsummary import summary
 
+
+
+
 class InceptioV3_frozen(nn.Module):
     def __init__(self, num_classes, learning_rate):
         super(InceptioV3_frozen, self).__init__()
