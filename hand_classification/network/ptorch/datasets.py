@@ -60,10 +60,7 @@ def get_train_valid_loader(data_dir,
     test_split = int(np.floor(split[1] * num_train))
     val_split = int(np.floor(split[0] * num_train)) + test_split
 
-
-    if shuffle:
-        np.random.seed(random_seed)
-        np.random.shuffle(indices)
+    np.random.shuffle(indices)
 
     test_idx, val_idx, train_idx = indices[0:test_split], indices[test_split:val_split], indices[val_split:]
     print(f"Number of dataset images: {num_train} ({round(num_train * 100 / len(train_dataset), 2)} %)")
@@ -83,15 +80,15 @@ def get_train_valid_loader(data_dir,
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
-        num_workers=num_workers, pin_memory=pin_memory,
+        num_workers=num_workers, pin_memory=pin_memory, drop_last=True
     )
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=batch_size, sampler=valid_sampler,
-        num_workers=num_workers, pin_memory=pin_memory,
+        num_workers=num_workers, pin_memory=pin_memory, drop_last=True
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset, batch_size=batch_size, sampler=test_sampler,
-        num_workers=num_workers, pin_memory=pin_memory,
+        num_workers=num_workers, pin_memory=pin_memory, drop_last=True
     )
 
     dataset_sizes = {'train': len(train_idx), 'val': len(val_idx), 'test': len(test_idx)}

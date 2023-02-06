@@ -9,6 +9,7 @@ import numpy as np
 import csv
 import argparse
 from datasets import get_train_valid_loader
+from losses import SupConLoss, SimpleConLoss
 # import matplotlib.pyplot as plt
 
 # def imshow(inp):
@@ -31,7 +32,7 @@ def main():
     parser.add_argument('-e', '--epochs', type=int, default=100, help='Number of epochs to train')
     parser.add_argument('-d', '--device', type=str, default="cuda:1", help='Decive used for training')
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.0001, help='Initial learning rate')
-    parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for training')
+    parser.add_argument('-bs', '--batch_size', type=int, default=4, help='Batch size for training')
     parser.add_argument('-p', '--patience', type=int, default=None, help='Training patience')
     parser.add_argument('-a', '--augmentation', action='store_true', default=False, help='Augmentation')
     parser.add_argument('-v', '--version', type=str, default="", help='This string is added to the name of the model')
@@ -49,13 +50,20 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptioV3(4, args.learning_rate, unfreeze_layers = [18])
+    layers_to_hook = ["classification", "avgpool"]
+
+    model = InceptioV3(4, args.learning_rate, layers_to_hook, [18])
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
 
+    output_layer = "avgpool"
+    # model.loss = SupConLoss(device=device)
+    model.loss = SimpleConLoss(4)
+
+        
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
 
@@ -115,7 +123,7 @@ def main():
 
 
     FILE = f"{model.name}.pth"
-    history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
+    history_collumns = ["epoch", "train_loss", "val_loss"]
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
     history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
     test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
@@ -129,7 +137,7 @@ def main():
 
     best_acc = 0.0
     
-    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []}
+    history = {'train_loss': [], 'val_loss': []}
     early_stopping_counter = 0
     last_epoch_loss = np.inf
     early_stopping = False
@@ -138,6 +146,11 @@ def main():
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
         print('-' * 10)
+
+        train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
+            os.path.join(data_dir, "train"), args.batch_size, data_transforms, None, shuffle=True)
+
+        dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -148,7 +161,8 @@ def main():
 
             running_loss = 0.0
             running_corrects = 0
-
+            
+            # dataloaders[phase].shuffle()
             # Iterate over data.
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
@@ -159,10 +173,15 @@ def main():
                 with torch.set_grad_enabled(phase == 'train'):
 
                     outputs = model(inputs)
-                    
-                    loss = model.loss(outputs["fc"], labels)
-                    
-                    _, preds = torch.max(outputs["fc"], 1)
+
+                    # loss = model.loss(outputs[output_layer], labels) # SupConLoss
+
+                    if labels[0] == labels[1]:
+                        d = 0
+                    else:
+                        d= 1
+                    loss = model.loss(outputs[output_layer][0], outputs[output_layer][1], d) # SimpleConLoss
+
                     # backward + optimize only if in training phase
                     if phase == 'train':
                         model.optimizer.zero_grad()
@@ -171,23 +190,16 @@ def main():
 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
-
 
             epoch_loss = running_loss / dataset_sizes[phase]
             history[f"{phase}_loss"].append(epoch_loss)
 
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
-            history[f"{phase}_acc"].append(epoch_acc.item())
 
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                phase, epoch_loss, epoch_acc))
+            print('{} Loss: {:.4f}'.format(
+                phase, epoch_loss))
 
             # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
-            
+
             if phase == 'val' and epoch_loss > last_epoch_loss:
                 early_stopping_counter += 1
                 print("Counter: ", early_stopping_counter)
@@ -197,6 +209,7 @@ def main():
                     break
 
             elif phase == 'val' and epoch_loss <= last_epoch_loss:
+                best_model_wts = copy.deepcopy(model.state_dict())
                 print("Reset counter")
                 early_stopping_counter = 0
 
@@ -217,9 +230,7 @@ def main():
 
                     row = {"epoch": i+1, 
                         "train_loss": history[f"train_loss"][i], 
-                        "train_acc": history[f"train_acc"][i],
-                        "val_loss": history[f"val_loss"][i],
-                        "val_acc": history[f"val_acc"][i]}
+                        "val_loss": history[f"val_loss"][i]}
                     
                     writer.writerow(row)
 
@@ -243,10 +254,8 @@ def main():
         for i in range(0, len(history["train_loss"])):
 
             row = {"epoch": i+1, 
-                   "train_loss": history[f"train_loss"][i], 
-                   "train_acc": history[f"train_acc"][i],
-                   "val_loss": history[f"val_loss"][i],
-                   "val_acc": history[f"val_acc"][i]}
+                   "train_loss": history[f"train_loss"][i],
+                   "val_loss": history[f"val_loss"][i]}
             
             writer.writerow(row)
 

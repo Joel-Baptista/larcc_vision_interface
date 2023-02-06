@@ -16,8 +16,8 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plots', action='store_true', default=False, help='Plot train curves')
     args = parser.parse_args()
     
-    model = "InceptionV3_unfrozen"
-    test  = "kinect_manel"
+    model = "InceptionV3_unfrozen_aug"
+    test  = "test"
     labels = ["A", "F", "L", "Y"]
 
     df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/test_results_{model}.csv")

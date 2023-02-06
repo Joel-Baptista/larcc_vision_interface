@@ -8,6 +8,17 @@ import os
 import numpy as np
 import csv
 import argparse
+import matplotlib.pyplot as plt
+
+def imshow(inp):
+    """Imshow for Tensor."""
+    mean = np.array([0.5, 0.5, 0.5])
+    std = np.array([0.25, 0.25, 0.25])
+    inp = inp.numpy().transpose((1, 2, 0))
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    plt.imshow(inp)
+    plt.show()
 
 
 def main():
@@ -23,7 +34,7 @@ def main():
 
 
     print("Script's arguments: ",args)
-    dataset = "kinect_daniel"
+    dataset = "kinect_manel"
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
     dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/{dataset}'
 
@@ -52,6 +63,13 @@ def main():
     class_names = image_datasets.classes
 
     print("Test classes: ",class_names)
+
+    inputs, classes = next(iter(dataloaders))
+
+    # Make a grid from batch
+    out = torchvision.utils.make_grid(inputs)
+
+    imshow(out)
 
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", dataset)
     test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
