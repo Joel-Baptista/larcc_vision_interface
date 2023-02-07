@@ -30,10 +30,10 @@ class InceptioV3(nn.Module):
             nn.Linear(512, 256),
             nn.ReLU(),
             )
-        self.model.fc.requires_grad_ = True
+        self.model.fc.requires_grad = True
 
-        self.model.add_module('classification', nn.Linear(256, num_classes))
-        self.model.classification.requires_grad_ = True
+        self.model.add_module('classifier', nn.Linear(256, num_classes))
+        self.model.classifier.requires_grad = True
 
         self.layers = layers_to_hook
         self._features = {layer: torch.empty(0) for layer in layers_to_hook}

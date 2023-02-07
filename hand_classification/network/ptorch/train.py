@@ -134,6 +134,20 @@ def main():
     last_epoch_loss = np.inf
     early_stopping = False
 
+    model.eval()
+
+    inputs, labels = next(iter(dataloaders['train']))
+
+    inputs = inputs.to(device)
+    labels = labels.to(device)
+
+    outputs = model(inputs)
+                    
+    loss = model.loss(outputs["fc"], labels)
+
+    print(f"Inital loss: {loss}")
+
+
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
@@ -205,7 +219,7 @@ def main():
 
         print()
 
-        if epoch % 10 == 0:
+        if (epoch + 1) % 10 == 0:
             print("Checkpoint - Saving training data")
             torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 

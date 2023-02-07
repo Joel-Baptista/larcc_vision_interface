@@ -8,7 +8,7 @@ import copy
 
 if __name__ == '__main__':
 
-    dataset = "kinect_manel"
+    dataset = "kinect_daniel"
 
     # dataset_path = f"/home/{USERNAME}/Datasets/ASL/test"
     dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/{dataset}"

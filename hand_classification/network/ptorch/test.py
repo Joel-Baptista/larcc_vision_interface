@@ -34,7 +34,7 @@ def main():
 
 
     print("Script's arguments: ",args)
-    dataset = "kinect_manel"
+    dataset = "kinect_daniel"
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
     dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/{dataset}'
 
@@ -42,7 +42,7 @@ def main():
     print("Training device: ", device)
 
     model = InceptioV3_unfrozen(4, 1)
-    model.name = f"{model.name}_aug"
+    model.name = f"{model.name}"
     trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device('cpu'))
     model.load_state_dict(trained_weights)
 

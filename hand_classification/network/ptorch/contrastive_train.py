@@ -22,6 +22,26 @@ from losses import SupConLoss, SimpleConLoss
 #     plt.imshow(inp)
 #     plt.show()
 
+def update_contrastive(self, raw_state_batch, raw_state_batch_pos):
+    
+    z_a = self.encode_image(raw_state_batch)
+    z_pos = self.encode_image(raw_state_batch_pos, target=True)
+    
+    logits = self.curl.compute_logits(z_a=z_a, z_pos=z_pos)
+    labels = torch.arange(logits.shape[0]).long().to(self.device)
+
+    loss = self.curl.loss(logits, labels)
+    
+    self.image_encoder.optimizer.zero_grad(set_to_none=True)
+    self.curl.optimizer.zero_grad(set_to_none=True)
+    
+    loss.backward()
+    
+    print(loss.item())
+    
+    self.image_encoder.optimizer.step()
+    self.curl.optimizer.step()
+
 
 def main():
 
@@ -50,7 +70,7 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    layers_to_hook = ["classification", "avgpool"]
+    layers_to_hook = ["classifier", "fc"]
 
     model = InceptioV3(4, args.learning_rate, layers_to_hook, [18])
     model.name = f"{model.name}{args.version}"
@@ -59,9 +79,9 @@ def main():
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
 
-    output_layer = "avgpool"
-    # model.loss = SupConLoss(device=device)
-    model.loss = SimpleConLoss(4)
+    output_layer = "fc"
+    model.loss = SupConLoss(device=device)
+    # model.loss = SimpleConLoss(4)
 
         
     mean = np.array([0.5, 0.5, 0.5])
@@ -125,8 +145,7 @@ def main():
     FILE = f"{model.name}.pth"
     history_collumns = ["epoch", "train_loss", "val_loss"]
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
-    history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
-    test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
+    history_path = os.path.join(data_dir, "results", f"{model.name}",f"train_results_{model.name}.csv")
 
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
@@ -142,13 +161,22 @@ def main():
     last_epoch_loss = np.inf
     early_stopping = False
 
+    model.eval()
+
+    inputs, labels = next(iter(dataloaders['train']))
+
+    inputs = inputs.to(device)
+    labels = labels.to(device)
+
+    outputs = model(inputs)
+                    
+    loss = model.loss(outputs[output_layer].unsqueeze(2), labels)
+
+    print(f"Inital loss: {loss}")
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
         print('-' * 10)
-
-        train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-            os.path.join(data_dir, "train"), args.batch_size, data_transforms, None, shuffle=True)
 
         dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
 
@@ -174,13 +202,13 @@ def main():
 
                     outputs = model(inputs)
 
-                    # loss = model.loss(outputs[output_layer], labels) # SupConLoss
+                    loss = model.loss(outputs[output_layer].unsqueeze(2), labels) # SupConLoss
 
-                    if labels[0] == labels[1]:
-                        d = 0
-                    else:
-                        d= 1
-                    loss = model.loss(outputs[output_layer][0], outputs[output_layer][1], d) # SimpleConLoss
+                    # if labels[0] == labels[1]:
+                    #     d = 0
+                    # else:
+                    #     d= 1
+                    # loss = model.loss(outputs[output_layer][0], outputs[output_layer][1], d) # SimpleConLoss
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
@@ -218,7 +246,7 @@ def main():
 
         print()
 
-        if epoch % 10 == 0:
+        if (epoch + 1) % 10 == 0:
             print("Checkpoint - Saving training data")
             torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
@@ -258,39 +286,6 @@ def main():
                    "val_loss": history[f"val_loss"][i]}
             
             writer.writerow(row)
-
-    model.eval()
-    test_labels = []
-    test_preds = []
-    running_corrects = 0
-    for inputs, labels in dataloaders["test"]:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-
-        outputs = model(inputs)
-        _, preds = torch.max(outputs, 1)
-
-        running_corrects += torch.sum(preds == labels.data)
-        
-        for i in range(0, len(labels)):
-
-            test_labels.append(labels[i].item())
-            test_preds.append(preds[i].item())
-
-    with open(test_path, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions"])
-        writer.writeheader()
-        for i in range(0, len(test_preds)):
-
-            row = {"labels": test_labels[i], 
-                    "predictions": test_preds[i]}
-            
-            writer.writerow(row)
-
-
-    test_acc = running_corrects.double() / dataset_sizes["test"]
-
-    print('Test Accuracy of the model on the {:.0f} test images: {:.2f}'.format(dataset_sizes["test"], 100 * test_acc))
 
 
 if __name__ == '__main__':
