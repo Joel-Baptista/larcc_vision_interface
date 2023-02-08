@@ -1,4 +1,4 @@
-from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptioV3
+from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptionV3
 import torch
 import time
 import copy
@@ -8,6 +8,7 @@ import os
 import numpy as np
 import csv
 import argparse
+import torch.nn as nn
 from datasets import get_train_valid_loader
 from losses import SupConLoss, SimpleConLoss
 # import matplotlib.pyplot as plt
@@ -57,6 +58,8 @@ def main():
     parser.add_argument('-a', '--augmentation', action='store_true', default=False, help='Augmentation')
     parser.add_argument('-v', '--version', type=str, default="", help='This string is added to the name of the model')
     parser.add_argument('-lt', '--load_train', action='store_true', default=False, help='Load train data')
+    parser.add_argument('-td', '--train_dataset', type=str, default='train', help='Train dataset')
+    parser.add_argument('-t', '--temperature', type=float, default=0.07, help='Temperature for contrastive loss')
 
     args = parser.parse_args()
 
@@ -70,17 +73,18 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    layers_to_hook = ["classifier", "fc"]
+    layers_to_hook = ["fc"]
 
-    model = InceptioV3(4, args.learning_rate, layers_to_hook, [18])
+    model = InceptionV3(4, args.learning_rate, layers_to_hook, [15, 16, 17, 18])
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
 
+    model.loss = SupConLoss(temperature=args.temperature, device=device)
     output_layer = "fc"
-    model.loss = SupConLoss(device=device)
+    class_loss = nn.CrossEntropyLoss()
     # model.loss = SimpleConLoss(4)
 
         
@@ -121,7 +125,7 @@ def main():
         ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, "train"), args.batch_size, data_transforms, None, shuffle=True)
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True, split=[0.6, 0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
@@ -143,7 +147,7 @@ def main():
 
 
     FILE = f"{model.name}.pth"
-    history_collumns = ["epoch", "train_loss", "val_loss"]
+    history_collumns = ["epoch", "train_loss", "val_loss", 'train_con_loss', 'val_con_loss', 'train_acc', 'val_acc']
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
     history_path = os.path.join(data_dir, "results", f"{model.name}",f"train_results_{model.name}.csv")
 
@@ -154,25 +158,27 @@ def main():
 
     since = time.time()
 
-    best_acc = 0.0
+    best_loss = 0.0
     
-    history = {'train_loss': [], 'val_loss': []}
+    history = {'train_loss': [], 'val_loss': [], 'train_con_loss': [], 'val_con_loss': [], 'train_acc': [], 'val_acc': []}
     early_stopping_counter = 0
     last_epoch_loss = np.inf
     early_stopping = False
 
-    model.eval()
+    # model.eval()
 
-    inputs, labels = next(iter(dataloaders['train']))
+    # inputs, labels = next(iter(dataloaders['train']))
 
-    inputs = inputs.to(device)
-    labels = labels.to(device)
+    # inputs = inputs.to(device)
+    # labels = labels.to(device)
 
-    outputs = model(inputs)
+    # outputs, hooks = model(inputs)
                     
-    loss = model.loss(outputs[output_layer].unsqueeze(2), labels)
+    # con_loss = model.loss(hooks[output_layer].unsqueeze(2), labels)
+    # loss_final = class_loss(outputs, labels) 
 
-    print(f"Inital loss: {loss}")
+    # print(f"Inital contrastive loss: {con_loss}")
+    # print(f"Inital classification loss: {loss_final}")
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
@@ -188,6 +194,7 @@ def main():
                 model.eval()   # Set model to evaluate mode
 
             running_loss = 0.0
+            running_con_loss = 0.0
             running_corrects = 0
             
             # dataloaders[phase].shuffle()
@@ -199,34 +206,47 @@ def main():
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
+                    
+                    outputs, hooks = model(inputs)
 
-                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
 
-                    loss = model.loss(outputs[output_layer].unsqueeze(2), labels) # SupConLoss
-
-                    # if labels[0] == labels[1]:
-                    #     d = 0
-                    # else:
-                    #     d= 1
-                    # loss = model.loss(outputs[output_layer][0], outputs[output_layer][1], d) # SimpleConLoss
+                    loss_con = model.loss(hooks[output_layer].unsqueeze(2), labels) # SupConLoss
+                    loss= class_loss(outputs, labels) 
 
                     # backward + optimize only if in training phase
                     if phase == 'train':
+                        
                         model.optimizer.zero_grad()
+
+                        loss_con.backward(retain_graph=True)
+    
                         loss.backward()
+                        
                         model.optimizer.step()
+
 
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
+                running_con_loss += loss_con.item() * inputs.size(0)
+                running_corrects += torch.sum(preds == labels.data)
 
             epoch_loss = running_loss / dataset_sizes[phase]
+            epoch_con_loss = running_con_loss / dataset_sizes[phase]
             history[f"{phase}_loss"].append(epoch_loss)
+            history[f"{phase}_con_loss"].append(epoch_con_loss)
+
+            epoch_acc = running_corrects.double() / dataset_sizes[phase]
+            history[f"{phase}_acc"].append(epoch_acc.item())
 
 
-            print('{} Loss: {:.4f}'.format(
-                phase, epoch_loss))
+            print('{} Loss: {:.4f} - Con Loss: {:.4f} - Acc: {:.4f}'.format(
+                phase, epoch_loss, epoch_con_loss, epoch_acc))
 
             # deep copy the model
+
+            if phase == 'train' and epoch_loss < best_loss:
+                best_loss = epoch_loss
 
             if phase == 'val' and epoch_loss > last_epoch_loss:
                 early_stopping_counter += 1
@@ -258,7 +278,11 @@ def main():
 
                     row = {"epoch": i+1, 
                         "train_loss": history[f"train_loss"][i], 
-                        "val_loss": history[f"val_loss"][i]}
+                        "val_loss": history[f"val_loss"][i],
+                        "train_con_loss": history[f"train_con_loss"][i],
+                        "val_con_loss": history[f"val_con_loss"][i],
+                        "train_acc": history[f"train_acc"][i],
+                        "val_acc": history[f"val_acc"][i]}
                     
                     writer.writerow(row)
 
@@ -268,7 +292,7 @@ def main():
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:4f}'.format(best_acc))
+    print('Best loss: {:4f}'.format(best_loss))
 
     # load best model weights
     model.load_state_dict(best_model_wts)
@@ -282,8 +306,12 @@ def main():
         for i in range(0, len(history["train_loss"])):
 
             row = {"epoch": i+1, 
-                   "train_loss": history[f"train_loss"][i],
-                   "val_loss": history[f"val_loss"][i]}
+                "train_loss": history[f"train_loss"][i], 
+                "val_loss": history[f"val_loss"][i],
+                "train_con_loss": history[f"train_con_loss"][i],
+                "val_con_loss": history[f"val_con_loss"][i],
+                "train_acc": history[f"train_acc"][i],
+                "val_acc": history[f"val_acc"][i]}
             
             writer.writerow(row)
 

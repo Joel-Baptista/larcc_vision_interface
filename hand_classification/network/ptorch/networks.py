@@ -5,9 +5,9 @@ from torchsummary import summary
 
 
 
-class InceptioV3(nn.Module):
+class InceptionV3(nn.Module):
     def __init__(self, num_classes, learning_rate, layers_to_hook = ['fc'], unfreeze_layers = []):
-        super(InceptioV3, self).__init__()
+        super(InceptionV3, self).__init__()
 
         self.name = "InceptionV3"
         self.model = inception_v3(weights=Inception_V3_Weights.IMAGENET1K_V1)
@@ -29,10 +29,14 @@ class InceptioV3(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
             )
         self.model.fc.requires_grad = True
 
-        self.model.add_module('classifier', nn.Linear(256, num_classes))
+        self.model.add_module('classifier', nn.Linear(32, num_classes))
         self.model.classifier.requires_grad = True
 
         self.layers = layers_to_hook
@@ -60,10 +64,10 @@ class InceptioV3(nn.Module):
 
     def forward(self, x):
 
-        _ = self.model(x)
+        output = self.model(x)
 
         # no activation and no softmax at the end
-        return self._features
+        return output, self._features
 
 
 
@@ -138,7 +142,7 @@ class InceptioV3_unfrozen(nn.Module):
             nn.ReLU(),
             nn.Linear(256, num_classes)
             )
-        print(self.model)
+
         self.layers = layers_to_hook
         self._features = {layer: torch.empty(0) for layer in layers_to_hook}
 

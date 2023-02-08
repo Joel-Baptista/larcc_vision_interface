@@ -1,4 +1,4 @@
-from networks import InceptioV3_frozen, InceptioV3_unfrozen
+from funcs import choose_model
 import torch
 import time
 import copy
@@ -8,17 +8,18 @@ import os
 import numpy as np
 import csv
 import argparse
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-def imshow(inp):
-    """Imshow for Tensor."""
-    mean = np.array([0.5, 0.5, 0.5])
-    std = np.array([0.25, 0.25, 0.25])
-    inp = inp.numpy().transpose((1, 2, 0))
-    inp = std * inp + mean
-    inp = np.clip(inp, 0, 1)
-    plt.imshow(inp)
-    plt.show()
+
+# def imshow(inp):
+#     """Imshow for Tensor."""
+#     mean = np.array([0.5, 0.5, 0.5])
+#     std = np.array([0.25, 0.25, 0.25])
+#     inp = inp.numpy().transpose((1, 2, 0))
+#     inp = std * inp + mean
+#     inp = np.clip(inp, 0, 1)
+#     plt.imshow(inp)
+#     plt.show()
 
 
 def main():
@@ -29,22 +30,20 @@ def main():
     
     parser.add_argument('-d', '--device', type=str, default="cuda:1", help='Decive used for testing')
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for testing')
+    parser.add_argument('-m', '--model_name', type=str, default="InceptionV3_unfrozen", help='Model name')
+    parser.add_argument('-t', '--test_dataset', type=str, default="kinect_test", help='Test dataset name')
 
     args = parser.parse_args()
 
 
     print("Script's arguments: ",args)
-    dataset = "kinect_daniel"
-    data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect'
-    dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/{dataset}'
+    dataset = args.test_dataset
+    dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/kinect/{dataset}'
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
 
-    model = InceptioV3_unfrozen(4, 1)
-    model.name = f"{model.name}"
-    trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device('cpu'))
-    model.load_state_dict(trained_weights)
+    model = choose_model(args.model_name, device)
 
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
@@ -63,15 +62,15 @@ def main():
     class_names = image_datasets.classes
 
     print("Test classes: ",class_names)
-
+    print("Test dataset: ", args.test_dataset)
     inputs, classes = next(iter(dataloaders))
 
     # Make a grid from batch
     out = torchvision.utils.make_grid(inputs)
 
-    imshow(out)
+    # imshow(out)
 
-    data_saving_path = os.path.join(data_dir, "results", f"{model.name}", dataset)
+    data_saving_path = os.path.join(f'{os.getenv("HOME")}/Datasets/ASL/kinect', "results", f"{model.name}", dataset)
     test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
     
     if not os.path.exists(data_saving_path):
@@ -91,7 +90,7 @@ def main():
         labels = labels.to(device)
 
         print("Tested ", count_tested, " out of ", dataset_sizes)
-        outputs = model(inputs)
+        outputs, _ = model(inputs)
         _, preds = torch.max(outputs, 1)
 
         running_corrects += torch.sum(preds == labels.data)

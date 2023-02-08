@@ -4,61 +4,32 @@ from vision_config.vision_definitions import USERNAME
 from hand_detection.src.pose_detection import PoseDetection
 import os
 import copy
+from shutil import copyfile
 import Augmentor
 
 
 if __name__ == '__main__':
 
-    dataset1 = f"/home/{USERNAME}/Datasets/ASL/larcc_addition"
-    dataset2 = f"/home/{USERNAME}/Datasets/ASL/train"
+    dataset1 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/train"
+    dataset2 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/kinect_daniel"
+    dataset3 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/kinect_lucas"
+    dataset4 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/kinect_manel"
 
+    list = [dataset1, dataset2, dataset3, dataset4]
+    
+    dataset_destination = f"{os.getenv('HOME')}/Datasets/ASL/kinect/train_joined"
     gestures = ["A", "F", "L", "Y"]
 
+    os.mkdir(dataset_destination)
+
     for g in gestures:
+        count = 0
+        os.mkdir(os.path.join(dataset_destination, g))
 
-        res = os.listdir(f"{dataset1}/{g}")
+        for dataset in list:
+            res = os.listdir(f"{dataset}/{g}")
 
-        num_samples = int(10 * len(res))
-
-        # aug_data[f"user{subject}"][gesture] = num_samples
-
-        p = Augmentor.Pipeline(source_directory=f"{dataset1}/{g}",
-                               output_directory=f"/home/{USERNAME}/Datasets/ASL/joined_dataset/{g}")
-
-        p.rotate(probability=1,
-                 max_left_rotation=15,
-                 max_right_rotation=15)
-
-        p.zoom(probability=1,
-               min_factor=0.9,
-               max_factor=1.1)
-
-        p.zoom_random(probability=1,
-                      percentage_area=0.8,
-                      randomise_percentage_area=False)
-
-        # p.random_brightness(probability=0.25,
-        #                     min_factor=0.9,
-        #                     max_factor=1.1)
-        #
-        # p.random_color(probability=0.25,
-        #                min_factor=0.2,
-        #                max_factor=1.0)
-        #
-        # p.random_contrast(probability=0.25,
-        #                   min_factor=0.2,
-        #                   max_factor=1.0)
-
-        # p.random_erasing(probability=0.25,
-        #                  rectangle_area=0.4)
-
-        p.sample(num_samples)
-
-    # for g in gestures:
-    #
-    #     res = os.listdir(f"{dataset2}/{g}")
-    #
-    #     for file in res:
-    #
-    #         img = cv2.imread(f"{dataset2}/{g}/{file}")
-    #         cv2.imwrite(f"/home/{USERNAME}/Datasets/ASL/joined_dataset/{g}/{file}", img)
+            for file in res:
+                
+                copyfile(f"{dataset}/{g}/{file}", f"{dataset_destination}/{g}/image{count}.png")
+                count = count + 1

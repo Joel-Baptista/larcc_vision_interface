@@ -14,10 +14,14 @@ if __name__ == '__main__':
                 description = 'It trains a Pytorch model')
 
     parser.add_argument('-p', '--plots', action='store_true', default=False, help='Plot train curves')
+    parser.add_argument('-m', '--model_name', type=str, default="InceptionV3_unfrozen", help='Model name')
+    parser.add_argument('-t', '--test_dataset', type=str, default="kinect_test", help='Test dataset name')
+
+
     args = parser.parse_args()
     
-    model = "InceptionV3_unfrozen"
-    test  = "kinect_lucas"
+    model = args.model_name
+    test  = args.test_dataset
     labels = ["A", "F", "L", "Y"]
 
     df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/test_results_{model}.csv")

@@ -1,4 +1,4 @@
-from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptioV3
+from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptionV3
 import torch
 import time
 import copy
@@ -36,6 +36,7 @@ def main():
     parser.add_argument('-a', '--augmentation', action='store_true', default=False, help='Augmentation')
     parser.add_argument('-v', '--version', type=str, default="", help='This string is added to the name of the model')
     parser.add_argument('-lt', '--load_train', action='store_true', default=False, help='Load train data')
+    parser.add_argument('-td', '--train_dataset', type=str, default='train', help='Train dataset')
 
     args = parser.parse_args()
 
@@ -49,7 +50,7 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptioV3(4, args.learning_rate, unfreeze_layers = [18])
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers = [18])
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
@@ -93,7 +94,7 @@ def main():
         ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, "train"), args.batch_size, data_transforms, None, shuffle=True)
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True)
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
@@ -141,9 +142,9 @@ def main():
     inputs = inputs.to(device)
     labels = labels.to(device)
 
-    outputs = model(inputs)
+    outputs, _ = model(inputs)
                     
-    loss = model.loss(outputs["fc"], labels)
+    loss = model.loss(outputs, labels)
 
     print(f"Inital loss: {loss}")
 
@@ -172,11 +173,11 @@ def main():
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
 
-                    outputs = model(inputs)
+                    outputs, _ = model(inputs)
                     
-                    loss = model.loss(outputs["fc"], labels)
+                    loss = model.loss(outputs, labels)
                     
-                    _, preds = torch.max(outputs["fc"], 1)
+                    _, preds = torch.max(outputs, 1)
                     # backward + optimize only if in training phase
                     if phase == 'train':
                         model.optimizer.zero_grad()
