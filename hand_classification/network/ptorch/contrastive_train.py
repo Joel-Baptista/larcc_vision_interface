@@ -119,6 +119,7 @@ def main():
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
             transforms.RandAugment(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
@@ -149,7 +150,6 @@ def main():
     FILE = f"{model.name}.pth"
     history_collumns = ["epoch", "train_loss", "val_loss", 'train_con_loss', 'val_con_loss', 'train_acc', 'val_acc']
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
-    history_path = os.path.join(data_dir, "results", f"{model.name}",f"train_results_{model.name}.csv")
 
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
@@ -207,11 +207,11 @@ def main():
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
                     
-                    outputs, hooks = model(inputs)
+                    outputs, contrastive_features = model(inputs)
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss_con = model.loss(hooks[output_layer].unsqueeze(2), labels) # SupConLoss
+                    loss_con = model.loss(contrastive_features.unsqueeze(2), labels) # SupConLoss
                     loss= class_loss(outputs, labels) 
 
                     # backward + optimize only if in training phase
@@ -271,7 +271,7 @@ def main():
             torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
             print("Data saved in : ", os.path.join(data_dir, "results", f"{model.name}"))
-            with open(history_path, 'w') as csvfile:
+            with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
                 writer.writeheader()
                 for i in range(0, len(history["train_loss"])):
@@ -300,7 +300,7 @@ def main():
 
     torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
-    with open(history_path, 'w') as csvfile:
+    with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
         writer.writeheader()
         for i in range(0, len(history["train_loss"])):

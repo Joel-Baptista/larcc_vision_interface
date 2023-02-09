@@ -9,6 +9,7 @@ import numpy as np
 import csv
 import argparse
 from datasets import get_train_valid_loader
+from torchsummary import summary
 # import matplotlib.pyplot as plt
 
 # def imshow(inp):
@@ -53,7 +54,7 @@ def main():
     model = InceptionV3(4, args.learning_rate, unfreeze_layers = [18])
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
-
+    
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
 
@@ -88,6 +89,7 @@ def main():
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
             transforms.RandAugment(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
@@ -118,7 +120,6 @@ def main():
     FILE = f"{model.name}.pth"
     history_collumns = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc"]
     data_saving_path = os.path.join(data_dir, "results", f"{model.name}", "test_data")
-    history_path = os.path.join(data_dir, "results", f"train_results_{model.name}.csv")
     test_path = os.path.join(data_saving_path, f"test_results_{model.name}.csv")
 
     if not os.path.exists(data_saving_path):
@@ -225,7 +226,7 @@ def main():
             torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
             print("Data saved in : ", os.path.join(data_dir, "results", f"{model.name}"))
-            with open(history_path, 'w') as csvfile:
+            with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
                 writer.writeheader()
                 for i in range(0, len(history["train_loss"])):
@@ -252,7 +253,7 @@ def main():
 
     torch.save(best_model_wts, os.path.join(data_dir, "results", f"{model.name}", FILE)) 
 
-    with open(history_path, 'w') as csvfile:
+    with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
         writer.writeheader()
         for i in range(0, len(history["train_loss"])):
@@ -273,7 +274,7 @@ def main():
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        outputs = model(inputs)
+        outputs, _ = model(inputs)
         _, preds = torch.max(outputs, 1)
 
         running_corrects += torch.sum(preds == labels.data)
