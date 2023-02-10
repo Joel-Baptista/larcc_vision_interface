@@ -7,6 +7,14 @@ import numpy as np
 import json
 import argparse
 
+def format_logits(logit):
+
+    logit = logit.strip('][').split(' ')
+
+    logit = [float(i) for i in logit if i != '']
+
+    return logit
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
@@ -17,15 +25,19 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--model_name', type=str, default="InceptionV3_unfrozen", help='Model name')
     parser.add_argument('-t', '--test_dataset', type=str, default="kinect_test", help='Test dataset name')
     parser.add_argument('-c', '--contrastive', action="store_true", default=False, help="Train data is contrastive")
-
+    parser.add_argument('-mu', '--multi_user', action="store_true", default=False, help="Select multiple users for testing")
+    parser.add_argument('-tr', '--treshold', type=float, default=0.9, help="Decision threshold")
 
     args = parser.parse_args()
     
     model = args.model_name
     test  = args.test_dataset
     labels = ["A", "F", "L", "Y"]
-    datasets = ["kinect_daniel", "kinect_manel", "kinect_lucas"]
-    # datasets = []
+
+    if args.multi_user:
+        datasets = ["kinect_daniel", "kinect_manel", "kinect_lucas"]
+    else:
+        datasets = []
 
     if len(datasets) == 0:
         datasets = [args.test_dataset]
@@ -46,20 +58,43 @@ if __name__ == '__main__':
 
     ground_truth = []
     predictions = []
-    
+    wrong_predictions = {}
+    right_predictions = {}
+
+    for label in labels:
+
+        wrong_predictions[label] = []
+        right_predictions[label] = []
+
     for i in range(0, len(df["labels"])):
-        # print(df["predictions"][i])
-        # print(i)
+
         ground_truth.append(labels[df["labels"][i]])
         predictions.append(labels[df["predictions"][i]])
+
+        if labels[df["labels"][i]] != labels[df["predictions"][i]]:
+            format_logits(df["logits"][i])
+            wrong_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+        else:
+            right_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+
+    print("Averge predictions probabilities for wrong predictions")
+
+    for key in wrong_predictions.keys():
+
+        print(key, ": ", np.average(wrong_predictions[key], axis=0))
+
+    print("Averge predictions probabilities for right predictions")
+
+    for key in right_predictions.keys():
+
+        print(key, ": ", np.average(right_predictions[key], axis=0))
 
 
     cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='true')
     cm = np.round(100 * cm, 2)
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-    disp.plot(cmap=blues)
-
+    disp.plot(cmap=blues, values_format='')
 
     recall = recall_score(ground_truth, predictions, average=None)
     precision = precision_score(ground_truth, predictions, average=None)
@@ -91,7 +126,28 @@ if __name__ == '__main__':
             json.dump(dic_results, outfile)
     
 
+    ground_truth = []
+    tr_predictions = []
+    labels.append("nothing")
+
+    for i in range(0, len(df["labels"])):
+
+        logit = format_logits(df["logits"][i])
+
+        ground_truth.append(labels[df["labels"][i]])
+
+        if logit[df["predictions"][i]] >= args.treshold:
+            tr_predictions.append(labels[df["predictions"][i]])
+        else:
+            tr_predictions.append("nothing")
     
+    
+    cm_t = confusion_matrix(ground_truth, tr_predictions, labels=labels, normalize='true')
+    cm_t = np.round(100 * cm_t, 2)
+    blues = plt.cm.Blues
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm_t, display_labels=labels)
+    disp.plot(cmap=blues, values_format='')
+
 
     loss_lim = (0, 4)
     con_loss_lim = (8, 10)
@@ -100,7 +156,7 @@ if __name__ == '__main__':
 
         if args.contrastive:
             
-            df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_results_{model}.csv")
+            df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{model}_train.csv")
 
             acc = df['train_acc']
             val_acc = df['val_acc']
@@ -140,7 +196,7 @@ if __name__ == '__main__':
 
 
         else:
-            df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_results_{model}.csv")
+            df = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{model}_train.csv")
 
             acc = df['train_acc']
             val_acc = df['val_acc']

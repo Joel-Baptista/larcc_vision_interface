@@ -129,7 +129,7 @@ def main():
         os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True, split=[0.6, 0.2, 0.2])
 
 
-    dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
+    dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader, "dataset_sizes": dataset_sizes}
     # Get a batch of training data
     # inputs, classes = next(iter(dataloaders['train']))
 
@@ -184,8 +184,6 @@ def main():
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
         print('-' * 10)
 
-        dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
-
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
             if phase == 'train':
@@ -211,8 +209,8 @@ def main():
 
                     _, preds = torch.max(outputs, 1)
 
-                    loss_con = model.loss(contrastive_features.unsqueeze(2), labels) # SupConLoss
-                    loss= class_loss(outputs, labels) 
+                    loss_con = model.con_loss(contrastive_features.unsqueeze(2), labels) # SupConLoss
+                    loss= model.loss(outputs, labels) 
 
                     # backward + optimize only if in training phase
                     if phase == 'train':

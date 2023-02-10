@@ -22,6 +22,7 @@ import argparse
 #     plt.show()
 
 
+
 def main():
 
     parser = argparse.ArgumentParser(
@@ -81,9 +82,12 @@ def main():
     model.eval()
     test_labels = []
     test_preds = []
+    logits = []
     running_corrects = 0
 
     count_tested = 0
+
+    softmax = torch.nn.Softmax()
 
     for inputs, labels in dataloaders:
         inputs = inputs.to(device)
@@ -99,15 +103,22 @@ def main():
 
             test_labels.append(labels[i].item())
             test_preds.append(preds[i].item())
+
+            logit = outputs[i]
+
+            logit = softmax(logit)
+
+            logits.append(logit.to('cpu').detach().numpy())
             count_tested += 1
 
     with open(test_path, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions"])
+        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions", "logits"])
         writer.writeheader()
         for i in range(0, len(test_preds)):
 
             row = {"labels": test_labels[i], 
-                    "predictions": test_preds[i]}
+                    "predictions": test_preds[i],
+                    "logits": logits[i]}
             
             writer.writerow(row)
 

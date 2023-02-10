@@ -11,6 +11,7 @@ def get_train_valid_loader(data_dir,
                            batch_size,
                            transfroms,
                            random_seed,
+                           test_path = None,
                            split=[0.2, 0.3],
                            shuffle=True,
                            num_workers=4,
@@ -51,18 +52,27 @@ def get_train_valid_loader(data_dir,
         root=data_dir, transform=transfroms["val"],
     )
 
-    test_dataset = datasets.ImageFolder(
-        root=data_dir, transform=transfroms["test"],
-    )
+    if test_path is not None:
+        split[1] = 0
+        test_dataset = datasets.ImageFolder(
+            root=test_path, transform=transfroms["test"],
+        )
+    else:
+        test_dataset = datasets.ImageFolder(
+            root=data_dir, transform=transfroms["test"],
+        )
 
     num_train = len(train_dataset)
     indices = list(range(num_train))
-    test_split = int(np.floor(split[1] * num_train))
-    val_split = int(np.floor(split[0] * num_train)) + test_split
+    test_split = int(np.floor(num_train - split[1] * num_train))
+    val_split = test_split - int(np.floor(split[0] * num_train))
 
     np.random.shuffle(indices)
+    print("Num train: ", num_train)
+    print("Num test: ", test_split)
+    print("Val split: ", val_split)
 
-    test_idx, val_idx, train_idx = indices[0:test_split], indices[test_split:val_split], indices[val_split:]
+    test_idx, val_idx, train_idx = indices[test_split:], indices[val_split:test_split], indices[:val_split]
     print(f"Number of dataset images: {num_train} ({round(num_train * 100 / len(train_dataset), 2)} %)")
     print(f"Number of train images: {len(train_idx)} (({round(len(train_idx) * 100 / len(train_dataset), 2)} %)")
     print(f"Number of val images: {len(val_idx)} ({round(len(val_idx) * 100 / len(train_dataset), 2)} %)")
@@ -86,12 +96,25 @@ def get_train_valid_loader(data_dir,
         valid_dataset, batch_size=batch_size, sampler=valid_sampler,
         num_workers=num_workers, pin_memory=pin_memory, drop_last=True
     )
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=batch_size, sampler=test_sampler,
-        num_workers=num_workers, pin_memory=pin_memory, drop_last=True
-    )
 
-    dataset_sizes = {'train': len(train_idx), 'val': len(val_idx), 'test': len(test_idx)}
+    if test_path is not None:
+
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=batch_size,
+            num_workers=num_workers, pin_memory=pin_memory, drop_last=True
+        )
+        test_len = len(test_dataset)
+    else:
+        test_loader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=batch_size, sampler=test_sampler,
+            num_workers=num_workers, pin_memory=pin_memory, drop_last=True
+        )
+        test_len = len(test_idx)
+
+
+
+    dataset_sizes = {'train': len(train_idx), 'val': len(val_idx), 'test': test_len}
+    print("Dataset sizes:", dataset_sizes)
 
     return (train_loader, valid_loader, test_loader, dataset_sizes)
 

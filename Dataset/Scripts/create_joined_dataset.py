@@ -15,9 +15,9 @@ if __name__ == '__main__':
     dataset3 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/kinect_lucas"
     dataset4 = f"{os.getenv('HOME')}/Datasets/ASL/kinect/kinect_manel"
 
-    list = [dataset1, dataset2, dataset3]
+    list = [dataset2, dataset3, dataset4]
     
-    dataset_destination = f"{os.getenv('HOME')}/Datasets/ASL/kinect/train_joined"
+    dataset_destination = f"{os.getenv('HOME')}/Datasets/ASL/kinect/multi_user"
     gestures = ["A", "F", "L", "Y"]
 
     os.mkdir(dataset_destination)
