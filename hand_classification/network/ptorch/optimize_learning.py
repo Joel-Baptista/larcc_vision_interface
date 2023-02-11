@@ -32,16 +32,18 @@ if __name__ == '__main__':
     if args.patience is None:
         args.patience = args.epochs
 
-    # last_unfrozen = [13, 15, 17]
-    last_unfrozen = [15]
-    # learning_rate = [0.001, 0.0001, 0.00001]
-    learning_rate = [0.0001]
-    # batch_size = [64, 128, 200]
-    batch_size = [200]
-    scale = [0.3, 0.5, 0.8]
-    prob_scale = [0.3, 0.5, 0.8]
-    # con_features = [16, 32, 64]
-    con_features = [32]
+    last_unfrozen = [13, 15, 17]
+    # last_unfrozen = [15]
+    learning_rate = [0.001, 0.0001, 0.00001]
+    # learning_rate = [0.0001]
+    batch_size = [64, 128, 200]
+    # batch_size = [200]
+    # scale = [0.3, 0.5, 0.8]
+    scale = [0.3]
+    # prob_scale = [0.3, 0.5, 0.8]
+    prob_scale = [0.3]
+    con_features = [16, 32, 64]
+    # con_features = [32]
     drop_out = [0.0, 0.3, 0.5]
 
     print("Script's arguments: ",args)
@@ -87,7 +89,7 @@ if __name__ == '__main__':
                                 print("Testing with params: ", params)
 
                                 model = InceptionV3(4, lr, device=device, unfreeze_layers= list(np.arange(last, 18)), dropout=drop, con_features=cf)
-                                model.name = f"{model.name}_aux"
+                                model.name = f"{model.name}{args.version}_aux"
                                 model.to(device)
 
                                 best_ws = train(model, dataloaders, paths, args, device)
@@ -96,7 +98,18 @@ if __name__ == '__main__':
 
                                 f1, acc = test(model, dataloaders, paths, device)
 
-                                print('Test Accuracy is {:.2f} and {:.2f}'.format(acc.item(), f1))
+                                print('Test Accuracy is {:.3f} and F1_score is {:.3f}'.format(acc.item(), f1))
+
+                                params["f1"] = f1
+                                params["acc"] = acc.item()
+
+                                with open(os.path.join(paths["results"], f'{model.name}', "logs.csv"), 'a') as csvfile:
+                                        writer = csv.DictWriter(csvfile, fieldnames=field_names)
+                                        writer.writeheader()
+                                        
+                                        row = params
+
+                                        writer.writerow(row)
 
                                 if f1 > optimized_params["1st"]["f1"]:
                                     print("Found new best combination!")
@@ -111,7 +124,6 @@ if __name__ == '__main__':
 
                                             row = optimized_params[key]
                                             
-                                            writer.writerow(row)
                                 elif f1 > optimized_params["2nd"]["f1"]:
                                     print("Found new second best combination!")
                                     optimized_params["3rd"] = optimized_params["2nd"]

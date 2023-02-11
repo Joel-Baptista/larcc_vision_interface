@@ -142,7 +142,7 @@ if __name__ == '__main__':
             tr_predictions.append("nothing")
     
     
-    cm_t = confusion_matrix(ground_truth, tr_predictions, labels=labels, normalize='true')
+    cm_t = confusion_matrix(ground_truth, tr_predictions, labels=labels, normalize='pred')
     cm_t = np.round(100 * cm_t, 2)
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm_t, display_labels=labels)

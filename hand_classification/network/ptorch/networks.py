@@ -6,7 +6,7 @@ from losses import SupConLoss, SimpleConLoss
 
 
 class InceptionV3(nn.Module):
-    def __init__(self, num_classes, learning_rate, device, temp= 0.7,unfreeze_layers = [], con_features = 32, class_features = 256, dropout = 0.0):
+    def __init__(self, num_classes, learning_rate, device, temp= 0.07,unfreeze_layers = [], con_features = 32, class_features = 256, dropout = 0.0):
         super(InceptionV3, self).__init__()
 
         self.name = "InceptionV3"

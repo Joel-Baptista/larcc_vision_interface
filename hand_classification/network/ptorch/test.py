@@ -94,11 +94,12 @@ def main():
         labels = labels.to(device)
 
         print("Tested ", count_tested, " out of ", dataset_sizes)
-        outputs, _ = model(inputs)
-        _, preds = torch.max(outputs, 1)
+        with torch.no_grad():
+            outputs, _ = model(inputs)
+            _, preds = torch.max(outputs, 1)
 
-        running_corrects += torch.sum(preds == labels.data)
-        
+            running_corrects += torch.sum(preds == labels.data)
+            
         for i in range(0, len(labels)):
 
             test_labels.append(labels[i].item())
@@ -106,7 +107,7 @@ def main():
 
             logit = outputs[i]
 
-            logit = softmax(logit)
+            # logit = softmax(logit)
 
             logits.append(logit.to('cpu').detach().numpy())
             count_tested += 1

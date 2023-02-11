@@ -73,20 +73,12 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    layers_to_hook = ["fc"]
-
-    model = InceptionV3(4, args.learning_rate, layers_to_hook, [15, 16, 17, 18])
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= [15, 16, 17, 18], device=device)
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
-
-    model.loss = SupConLoss(temperature=args.temperature, device=device)
-    output_layer = "fc"
-    class_loss = nn.CrossEntropyLoss()
-    # model.loss = SimpleConLoss(4)
-
         
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
@@ -119,14 +111,14 @@ def main():
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
-            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
+            # transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
             transforms.RandAugment(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True, split=[0.6, 0.2, 0.2])
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True, split=[0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader, "dataset_sizes": dataset_sizes}

@@ -64,7 +64,7 @@ def choose_model(model_name, device):
 
     if  "inceptionv3" in model_name.lower():
         
-        model = InceptionV3(4, 1)
+        model = InceptionV3(4, 1, device)
         model.name = model_name
         print(f"Using {model_name}")
 
@@ -92,9 +92,9 @@ def train(model, dataloaders,  paths, args, device):
 
 
     for epoch in range(args.epochs):
-        if (epoch + 1) % 10 == 0:
-            print('Epoch {}/{}'.format(epoch + 1, args.epochs))
-            print('-' * 10)
+        # if (epoch + 1) % 10 == 0:
+        #     print('Epoch {}/{}'.format(epoch + 1, args.epochs))
+        #     print('-' * 10)
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -169,12 +169,10 @@ def train(model, dataloaders,  paths, args, device):
 
             if phase == 'val':
                 last_epoch_loss = epoch_loss
-
-            print()
-
-            if (epoch + 1) % 10 == 0:
-                print('{} Loss: {:.4f} - Con Loss: {:.4f} - Acc: {:.4f}'.format(
-                    phase, epoch_loss, epoch_con_loss, epoch_acc))
+                
+            # if (epoch + 1) % 10 == 0:
+            #     print('{} Loss: {:.4f} - Con Loss: {:.4f} - Acc: {:.4f}'.format(
+            #         phase, epoch_loss, epoch_con_loss, epoch_acc))
 
 
             # print("Checkpoint - Saving training data")
@@ -204,7 +202,7 @@ def train(model, dataloaders,  paths, args, device):
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(
         time_elapsed // 60, time_elapsed % 60))
-    print('Best loss: {:4f}'.format(best_loss))
+    print('Best loss: {:8f}'.format(best_loss))
 
     return best_model_wts
 
