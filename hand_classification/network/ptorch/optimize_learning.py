@@ -123,6 +123,8 @@ if __name__ == '__main__':
                                         for key in optimized_params.keys():
 
                                             row = optimized_params[key]
+
+                                            writer.writerow(row)
                                             
                                 elif f1 > optimized_params["2nd"]["f1"]:
                                     print("Found new second best combination!")
@@ -139,7 +141,7 @@ if __name__ == '__main__':
                                             writer.writerow(row)
 
                                 elif f1 > optimized_params["3rd"]["f1"]:
-                                    print("Found new second best combination!")
+                                    print("Found new thrid best combination!")
                                     optimized_params["3rd"] = params
 
                                     with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
