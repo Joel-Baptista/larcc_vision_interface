@@ -73,7 +73,7 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= [15, 16, 17, 18], device=device)
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16)
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
@@ -111,7 +111,7 @@ def main():
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
-            # transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
             transforms.RandAugment(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)

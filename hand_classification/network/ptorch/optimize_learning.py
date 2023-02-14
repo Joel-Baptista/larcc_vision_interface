@@ -9,6 +9,7 @@ from losses import SupConLoss, SimpleConLoss
 from funcs import set_transforms, test, train
 from networks import InceptionV3
 import time
+import pandas as pd
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -32,11 +33,12 @@ if __name__ == '__main__':
     if args.patience is None:
         args.patience = args.epochs
 
-    last_unfrozen = [13, 15, 17]
+    last_unfrozen = [17, 15, 13]
     # last_unfrozen = [15]
     learning_rate = [0.001, 0.0001, 0.00001]
     # learning_rate = [0.0001]
-    batch_size = [64, 128, 200]
+    batch_size = [64]
+    # batch_size = [64, 128, 200]
     # batch_size = [200]
     # scale = [0.3, 0.5, 0.8]
     scale = [0.3]
@@ -44,7 +46,8 @@ if __name__ == '__main__':
     prob_scale = [0.3]
     con_features = [16, 32, 64]
     # con_features = [32]
-    drop_out = [0.0, 0.3, 0.5]
+    # drop_out = [0.0, 0.3, 0.5]
+    drop_out = [0.0]
 
     print("Script's arguments: ",args)
 
@@ -59,6 +62,29 @@ if __name__ == '__main__':
 
     optimized_params = {"1st": {"f1": 0}, "2nd": {}, "3rd": {}}
     field_names = ["batch_size", "scale", "prob_scale", "unfrozen", "learning_rate", "drop_out", "con_features", "f1", "acc"]
+
+    tested_combinations = {"batch_size": [],
+                           "scale": [],
+                           "prob_scale": [],
+                           "unfrozen": [],
+                           "learning_rate": [],
+                           "drop_out": [],
+                           "con_features": [],
+                           "f1": [],
+                           "acc": []}
+
+    optimized_combinations = {"batch_size": [0, 0, 0],
+                            "scale": [0, 0, 0],
+                            "prob_scale": [0, 0, 0],
+                            "unfrozen": [0, 0, 0],
+                            "learning_rate": [0, 0, 0],
+                            "drop_out": [0, 0, 0],
+                            "con_features": [0, 0, 0],
+                            "f1": [0, 0, 0],
+                            "acc": [0, 0, 0]}
+
+    df = pd.DataFrame(tested_combinations)
+    df.to_csv('logs.csv', mode='w', index=False, header=True)
 
     for bs in batch_size:
         for sc in scale:
@@ -76,19 +102,19 @@ if __name__ == '__main__':
                         for drop in drop_out:
                             for cf in con_features:
 
-                                params = {"batch_size": bs,
-                                          "scale": sc,
-                                          "prob_scale": psc,
-                                          "unfrozen": last,
-                                          "learning_rate": lr,
-                                          "drop_out": drop,
-                                          "con_features": cf,
+                                params = {"batch_size": [bs],
+                                          "scale": [sc],
+                                          "prob_scale": [psc],
+                                          "unfrozen": [last],
+                                          "learning_rate": [lr],
+                                          "drop_out": [drop],
+                                          "con_features": [cf],
                                           "f1": 0,
                                           "acc": 0}
 
                                 print("Testing with params: ", params)
 
-                                model = InceptionV3(4, lr, device=device, unfreeze_layers= list(np.arange(last, 18)), dropout=drop, con_features=cf)
+                                model = InceptionV3(4, lr, device=device, unfreeze_layers= list(np.arange(last, 19)), dropout=drop, con_features=cf)
                                 model.name = f"{model.name}{args.version}_aux"
                                 model.to(device)
 
@@ -100,55 +126,59 @@ if __name__ == '__main__':
 
                                 print('Test Accuracy is {:.3f} and F1_score is {:.3f}'.format(acc.item(), f1))
 
-                                params["f1"] = f1
-                                params["acc"] = acc.item()
+                                params["f1"] = [f1]
+                                params["acc"] = [acc.item()]
 
-                                with open(os.path.join(paths["results"], f'{model.name}', "logs.csv"), 'a') as csvfile:
-                                        writer = csv.DictWriter(csvfile, fieldnames=field_names)
-                                        writer.writeheader()
+                                df = pd.DataFrame(params)
+ 
+                                df.to_csv(os.path.join(paths["results"], f'{model.name}', "logs.csv"), mode='a', index=False, header=False)
+
+                                # with open(os.path.join(paths["results"], f'{model.name}', "logs.csv"), 'a') as csvfile:
+                                #         writer = csv.DictWriter(csvfile, fieldnames=field_names)
+                                #         writer.writeheader()
                                         
-                                        row = params
+                                #         row = params
 
-                                        writer.writerow(row)
+                                #         writer.writerow(row)
 
-                                if f1 > optimized_params["1st"]["f1"]:
-                                    print("Found new best combination!")
-                                    optimized_params["3rd"] = optimized_params["2nd"]
-                                    optimized_params["2nd"] = optimized_params["1st"]
-                                    optimized_params["1st"] = params
+                                # if f1 > optimized_params["1st"]["f1"]:
+                                #     print("Found new best combination!")
+                                #     optimized_params["3rd"] = optimized_params["2nd"]
+                                #     optimized_params["2nd"] = optimized_params["1st"]
+                                #     optimized_params["1st"] = params
 
-                                    with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
-                                        writer = csv.DictWriter(csvfile, fieldnames=field_names)
-                                        writer.writeheader()
-                                        for key in optimized_params.keys():
+                                #     with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
+                                #         writer = csv.DictWriter(csvfile, fieldnames=field_names)
+                                #         writer.writeheader()
+                                #         for key in optimized_params.keys():
 
-                                            row = optimized_params[key]
+                                #             row = optimized_params[key]
 
-                                            writer.writerow(row)
+                                #             writer.writerow(row)
                                             
-                                elif f1 > optimized_params["2nd"]["f1"]:
-                                    print("Found new second best combination!")
-                                    optimized_params["3rd"] = optimized_params["2nd"]
-                                    optimized_params["2nd"] = params
+                                # elif f1 > optimized_params["2nd"]["f1"]:
+                                #     print("Found new second best combination!")
+                                #     optimized_params["3rd"] = optimized_params["2nd"]
+                                #     optimized_params["2nd"] = params
 
-                                    with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
-                                        writer = csv.DictWriter(csvfile, fieldnames=field_names)
-                                        writer.writeheader()
-                                        for key in optimized_params.keys():
+                                #     with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
+                                #         writer = csv.DictWriter(csvfile, fieldnames=field_names)
+                                #         writer.writeheader()
+                                #         for key in optimized_params.keys():
 
-                                            row = optimized_params[key]
+                                #             row = optimized_params[key]
                                             
-                                            writer.writerow(row)
+                                #             writer.writerow(row)
 
-                                elif f1 > optimized_params["3rd"]["f1"]:
-                                    print("Found new thrid best combination!")
-                                    optimized_params["3rd"] = params
+                                # elif f1 > optimized_params["3rd"]["f1"]:
+                                #     print("Found new thrid best combination!")
+                                #     optimized_params["3rd"] = params
 
-                                    with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
-                                        writer = csv.DictWriter(csvfile, fieldnames=field_names)
-                                        writer.writeheader()
-                                        for key in optimized_params.keys():
+                                #     with open(os.path.join(paths["results"], f'{model.name}', "optimized.csv"), 'w') as csvfile:
+                                #         writer = csv.DictWriter(csvfile, fieldnames=field_names)
+                                #         writer.writeheader()
+                                #         for key in optimized_params.keys():
 
-                                            row = optimized_params[key]
+                                #             row = optimized_params[key]
                                             
-                                            writer.writerow(row)
+                                #             writer.writerow(row)
