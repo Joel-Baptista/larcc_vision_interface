@@ -115,9 +115,9 @@ def main():
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
-            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3)), transforms.RandAugment(magnitude=18)]), p=0.8),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3)), transforms.RandAugment(magnitude=18)]), p=0.7),
             transforms.ToTensor(),
-            transforms.RandomErasing(p = 0.5),
+            transforms.RandomErasing(p = 0.5, scale=(0.02, 0.1)),
             transforms.Normalize(mean, std)
         ])
         # data_transforms['train'] = transforms.Compose([
@@ -324,7 +324,7 @@ def main():
 
     f1, acc = test(model, dataloaders, paths, device)
 
-    print("F1: " + str(f1) + "\nAcc: " + str(acc))
+    print("F1: " + str(f1) + "\nAcc: " + str(acc.item()))
 
 if __name__ == '__main__':
     main()

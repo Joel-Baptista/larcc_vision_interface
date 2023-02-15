@@ -56,7 +56,7 @@ class InceptionV3(nn.Module):
             if stop:
                 break
 
-        
+        modules_proj_head.append(nn.Dropout(dropout))
         self.proj_head = nn.Sequential(
             *modules_proj_head
             )
