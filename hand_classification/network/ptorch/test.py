@@ -1,4 +1,5 @@
 from funcs import choose_model
+from networks import InceptionV3
 import torch
 import time
 import copy
@@ -44,7 +45,12 @@ def main():
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
 
-    model = choose_model(args.model_name, device)
+    # model = choose_model(args.model_name, device)
+    model = InceptionV3(4, 0.0001, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16)
+    model.name = args.model_name
+
+    trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device(device))
+    model.load_state_dict(trained_weights)
 
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
@@ -58,7 +64,7 @@ def main():
 
     image_datasets = datasets.ImageFolder(dataset_path, data_transforms)
     dataloaders = torch.utils.data.DataLoader(image_datasets, batch_size=args.batch_size,
-                                                shuffle=True, num_workers=2, prefetch_factor=1)
+                                                shuffle=False, num_workers=2, prefetch_factor=1)
     dataset_sizes = len(image_datasets)
     class_names = image_datasets.classes
 
@@ -83,15 +89,17 @@ def main():
     test_labels = []
     test_preds = []
     logits = []
+    file_names = []
     running_corrects = 0
 
     count_tested = 0
 
     softmax = torch.nn.Softmax()
 
-    for inputs, labels in dataloaders:
+    for j, (inputs, labels) in enumerate(dataloaders, 0):
         inputs = inputs.to(device)
         labels = labels.to(device)
+
 
         print("Tested ", count_tested, " out of ", dataset_sizes)
         with torch.no_grad():
@@ -99,11 +107,17 @@ def main():
             _, preds = torch.max(outputs, 1)
 
             running_corrects += torch.sum(preds == labels.data)
-            
+
+
         for i in range(0, len(labels)):
+
+            idx = args.batch_size * j + i
+
+            sample_fname, _ = dataloaders.dataset.samples[idx]
 
             test_labels.append(labels[i].item())
             test_preds.append(preds[i].item())
+            file_names.append(sample_fname)
 
             logit = outputs[i]
 
@@ -113,13 +127,14 @@ def main():
             count_tested += 1
 
     with open(test_path, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions", "logits"])
+        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions", "logits", "filename"])
         writer.writeheader()
         for i in range(0, len(test_preds)):
 
             row = {"labels": test_labels[i], 
                     "predictions": test_preds[i],
-                    "logits": logits[i]}
+                    "logits": logits[i],
+                    "filename": file_names[i]}
             
             writer.writerow(row)
 

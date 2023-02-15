@@ -8,6 +8,7 @@ import os
 import numpy as np
 import csv
 import argparse
+from funcs import test
 import torch.nn as nn
 from datasets import get_train_valid_loader
 from losses import SupConLoss, SimpleConLoss
@@ -63,6 +64,10 @@ def main():
 
     args = parser.parse_args()
 
+    paths = {"dataset": f'{os.getenv("HOME")}/Datasets/ASL/kinect/{args.train_dataset}',
+            "test_dataset": f'{os.getenv("HOME")}/Datasets/ASL/kinect/multi_user',
+            "results": f'{os.getenv("HOME")}/Datasets/ASL/kinect/results'}
+
     if args.patience is None:
         args.patience = args.epochs
 
@@ -73,7 +78,7 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16)
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16, dropout=0.3)
     model.name = f"{model.name}{args.version}"
     num_epochs = args.epochs
 
@@ -106,23 +111,35 @@ def main():
     }
 
     if args.augmentation:
-        model.name = f"{model.name}_aug"
         data_transforms['train'] = transforms.Compose([
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
-            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
-            transforms.RandAugment(),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3)), transforms.RandAugment(magnitude=18)]), p=0.8),
             transforms.ToTensor(),
+            transforms.RandomErasing(p = 0.5),
             transforms.Normalize(mean, std)
         ])
+        # data_transforms['train'] = transforms.Compose([
+        #     transforms.Resize(299),
+        #     # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
+        #     # transforms.RandomHorizontalFlip(),
+        #     transforms.RandomApply(
+        #         torch.nn.ModuleList([
+        #             transforms.RandomResizedCrop(299, scale=(0.7, 1.3)),
+        #             transforms.RandomRotation()
+        #             ],), p=0.5),
+        #     transforms.RandAugment(),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(mean, std)
+        # ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True, split=[0.2, 0.2])
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= paths["test_dataset"], shuffle=True, split=[0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader, "dataset_sizes": dataset_sizes}
-    # Get a batch of training data
+    # # Get a batch of training data
     # inputs, classes = next(iter(dataloaders['train']))
 
     # # Make a grid from batch
@@ -305,6 +322,9 @@ def main():
             
             writer.writerow(row)
 
+    f1, acc = test(model, dataloaders, paths, device)
+
+    print("F1: " + str(f1) + "\nAcc: " + str(acc))
 
 if __name__ == '__main__':
     main()
