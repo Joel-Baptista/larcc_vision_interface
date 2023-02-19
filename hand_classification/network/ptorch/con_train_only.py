@@ -12,6 +12,7 @@ from funcs import test
 import torch.nn as nn
 from datasets import get_train_valid_loader
 from losses import SupConLoss, SimpleConLoss
+import json
 # import matplotlib.pyplot as plt
 
 # def imshow(inp):
@@ -23,26 +24,6 @@ from losses import SupConLoss, SimpleConLoss
 #     inp = np.clip(inp, 0, 1)
 #     plt.imshow(inp)
 #     plt.show()
-
-def update_contrastive(self, raw_state_batch, raw_state_batch_pos):
-    
-    z_a = self.encode_image(raw_state_batch)
-    z_pos = self.encode_image(raw_state_batch_pos, target=True)
-    
-    logits = self.curl.compute_logits(z_a=z_a, z_pos=z_pos)
-    labels = torch.arange(logits.shape[0]).long().to(self.device)
-
-    loss = self.curl.loss(logits, labels)
-    
-    self.image_encoder.optimizer.zero_grad(set_to_none=True)
-    self.curl.optimizer.zero_grad(set_to_none=True)
-    
-    loss.backward()
-    
-    print(loss.item())
-    
-    self.image_encoder.optimizer.step()
-    self.curl.optimizer.step()
 
 
 def main():
@@ -79,13 +60,16 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16, dropout=0.3)
-    model.name = f"{args.model}{args.version}"
+    unfreeze_layers = list(np.arange(13, 19))
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, device=device, con_features=16, dropout=0.3)
+    model.name = f"{args.model}"
     num_epochs = args.epochs
 
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{args.model}/{args.model}.pth"))
-        
+        print("Previous train loaded")
+    
+    model.name = f"{model.name}{args.version}"
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
 
@@ -117,24 +101,12 @@ def main():
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
             transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
-            transforms.RandomApply(torch.nn.ModuleList([transforms.RandAugment(magnitude=9)]), p=0.8),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandAugment(magnitude=9)]), p=0.9),
             transforms.ToTensor(),
             # transforms.RandomErasing(p = 0.5, scale=(0.02, 0.1)),
             transforms.Normalize(mean, std)
         ])
-        # data_transforms['train'] = transforms.Compose([
-        #     transforms.Resize(299),
-        #     # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
-        #     # transforms.RandomHorizontalFlip(),
-        #     transforms.RandomApply(
-        #         torch.nn.ModuleList([
-        #             transforms.RandomResizedCrop(299, scale=(0.7, 1.3)),
-        #             transforms.RandomRotation()
-        #             ],), p=0.5),
-        #     transforms.RandAugment(),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize(mean, std)
-        # ])
+
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
         os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= paths["test_dataset"], shuffle=True, split=[0.2, 0.2])
@@ -164,6 +136,21 @@ def main():
 
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
+    
+    data = {"unfrozen_layers": float(unfreeze_layers[0]),
+            "contrastive_features": float(model.con_features),
+            "class_features": float(model.class_features),
+            "dropout": float(model.drop_out),
+            "learning_rate": float(model.learning_rate),
+            "batch_size": float(args.batch_size),
+            "epochs": float(args.epochs),
+            }
+
+    print(data)
+    json_data = json.dumps(data)
+
+    with open(data_saving_path + 'train_settings.json', 'w') as outfile:
+        outfile.write(json_data)
 
     model.to(device)
 
@@ -176,20 +163,6 @@ def main():
     last_epoch_loss = np.inf
     early_stopping = False
 
-    # model.eval()
-
-    # inputs, labels = next(iter(dataloaders['train']))
-
-    # inputs = inputs.to(device)
-    # labels = labels.to(device)
-
-    # outputs, hooks = model(inputs)
-                    
-    # con_loss = model.loss(hooks[output_layer].unsqueeze(2), labels)
-    # loss_final = class_loss(outputs, labels) 
-
-    # print(f"Inital contrastive loss: {con_loss}")
-    # print(f"Inital classification loss: {loss_final}")
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))

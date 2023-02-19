@@ -10,6 +10,7 @@ import csv
 import argparse
 from datasets import get_train_valid_loader
 from torchsummary import summary
+import json
 # import matplotlib.pyplot as plt
 
 # def imshow(inp):
@@ -56,12 +57,15 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= [], device=device, con_features=16, dropout=0.3)
-    model.name = f"{args.model}{args.version}"
+    unfreeze_layers = []
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, device=device, con_features=16, dropout=0.3, train_encoder=False)
+    model.name = f"{args.model}"
     num_epochs = args.epochs
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
+        print("Previous train loaded")
 
+    model.name = f"{model.name}{args.version}"
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
     data_transforms = {
@@ -127,6 +131,22 @@ def main():
 
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
+
+    
+    data = {
+            "contrastive_features": float(model.con_features),
+            "class_features": float(model.class_features),
+            "dropout": float(model.drop_out),
+            "learning_rate": float(model.learning_rate),
+            "batch_size": float(args.batch_size),
+            "epochs": float(args.epochs),
+            }
+
+    print(data)
+    json_data = json.dumps(data)
+
+    with open(data_saving_path + 'train_settings.json', 'w') as outfile:
+        outfile.write(json_data)
 
     model.to(device)
 
