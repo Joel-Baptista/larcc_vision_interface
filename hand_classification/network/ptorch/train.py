@@ -38,6 +38,7 @@ def main():
     parser.add_argument('-v', '--version', type=str, default="", help='This string is added to the name of the model')
     parser.add_argument('-lt', '--load_train', action='store_true', default=False, help='Load train data')
     parser.add_argument('-td', '--train_dataset', type=str, default='train', help='Train dataset')
+    parser.add_argument('-m', '--model', type=str, default="InceptionV3", help='Base model name')
 
     args = parser.parse_args()
 
@@ -49,18 +50,20 @@ def main():
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
 
+    paths = {"dataset": f'{os.getenv("HOME")}/Datasets/ASL/kinect/{args.train_dataset}',
+        "test_dataset": f'{os.getenv("HOME")}/Datasets/ASL/kinect/multi_user',
+        "results": f'{os.getenv("HOME")}/Datasets/ASL/kinect/results'}
+
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers = [18])
-    model.name = f"{model.name}{args.version}"
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= [], device=device, con_features=16, dropout=0.3)
+    model.name = f"{args.model}{args.version}"
     num_epochs = args.epochs
-    
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
 
     mean = np.array([0.5, 0.5, 0.5])
     std = np.array([0.25, 0.25, 0.25])
-
     data_transforms = {
         'train': transforms.Compose([
             transforms.Resize(299),
@@ -84,19 +87,19 @@ def main():
     }
 
     if args.augmentation:
-        model.name = f"{model.name}_aug"
         data_transforms['train'] = transforms.Compose([
             transforms.Resize(299),
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
             transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
-            transforms.RandAugment(),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandAugment(magnitude=9)]), p=0.8),
             transforms.ToTensor(),
+            # transforms.RandomErasing(p = 0.5, scale=(0.02, 0.1)),
             transforms.Normalize(mean, std)
         ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, shuffle=True)
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= paths["test_dataset"], shuffle=True, split=[0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}

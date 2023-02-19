@@ -202,9 +202,7 @@ def main():
             else:
                 model.eval()   # Set model to evaluate mode
 
-            running_loss = 0.0
             running_con_loss = 0.0
-            running_corrects = 0
             
             # dataloaders[phase].shuffle()
             # Iterate over data.
@@ -218,46 +216,35 @@ def main():
                     
                     outputs, contrastive_features = model(inputs)
 
-                    _, preds = torch.max(outputs, 1)
-
                     loss_con = model.con_loss(contrastive_features.unsqueeze(2), labels) # SupConLoss
-                    loss= model.loss(outputs, labels) 
-                    print(loss.item())
+
                     # backward + optimize only if in training phase
                     if phase == 'train':
                         
                         model.optimizer.zero_grad()
 
-                        loss_con.backward(retain_graph=True)
-    
-                        loss.backward()
-                        
+                        loss_con.backward()
+
                         model.optimizer.step()
 
 
                 # statistics
-                running_loss += loss.item() * inputs.size(0)
-                running_con_loss += loss_con.item() * inputs.size(0)
-                running_corrects += torch.sum(preds == labels.data)
 
-            epoch_loss = running_loss / dataset_sizes[phase]
+                running_con_loss += loss_con.item() * inputs.size(0)
+
             epoch_con_loss = running_con_loss / dataset_sizes[phase]
-            history[f"{phase}_loss"].append(epoch_loss)
             history[f"{phase}_con_loss"].append(epoch_con_loss)
 
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
-            history[f"{phase}_acc"].append(epoch_acc.item())
 
-
-            print('{} Loss: {:.4f} - Con Loss: {:.4f} - Acc: {:.4f}'.format(
-                phase, epoch_loss, epoch_con_loss, epoch_acc))
+            print('{} Con Loss: {:.4f}'.format(
+                phase, epoch_con_loss))
 
             # deep copy the model
 
-            if phase == 'train' and epoch_loss < best_loss:
-                best_loss = epoch_loss
+            if phase == 'train' and epoch_con_loss < best_loss:
+                best_loss = epoch_con_loss
 
-            if phase == 'val' and epoch_loss > last_epoch_loss:
+            if phase == 'val' and epoch_con_loss > last_epoch_loss:
                 early_stopping_counter += 1
                 print("Counter: ", early_stopping_counter)
                 if early_stopping_counter >= args.patience:
@@ -265,13 +252,13 @@ def main():
                     early_stopping = True
                     break
 
-            elif phase == 'val' and epoch_loss <= last_epoch_loss:
+            elif phase == 'val' and epoch_con_loss <= last_epoch_loss:
                 best_model_wts = copy.deepcopy(model.state_dict())
                 print("Reset counter")
                 early_stopping_counter = 0
 
             if phase == 'val':
-                last_epoch_loss = epoch_loss
+                last_epoch_loss = epoch_con_loss
 
         print()
 
@@ -286,12 +273,8 @@ def main():
                 for i in range(0, len(history["train_loss"])):
 
                     row = {"epoch": i+1, 
-                        "train_loss": history[f"train_loss"][i], 
-                        "val_loss": history[f"val_loss"][i],
                         "train_con_loss": history[f"train_con_loss"][i],
-                        "val_con_loss": history[f"val_con_loss"][i],
-                        "train_acc": history[f"train_acc"][i],
-                        "val_acc": history[f"val_acc"][i]}
+                        "val_con_loss": history[f"val_con_loss"][i],}
                     
                     writer.writerow(row)
 
@@ -315,18 +298,11 @@ def main():
         for i in range(0, len(history["train_loss"])):
 
             row = {"epoch": i+1, 
-                "train_loss": history[f"train_loss"][i], 
-                "val_loss": history[f"val_loss"][i],
                 "train_con_loss": history[f"train_con_loss"][i],
-                "val_con_loss": history[f"val_con_loss"][i],
-                "train_acc": history[f"train_acc"][i],
-                "val_acc": history[f"val_acc"][i]}
+                "val_con_loss": history[f"val_con_loss"][i],}
             
             writer.writerow(row)
 
-    f1, acc = test(model, dataloaders, paths, device)
-
-    print("F1: " + str(f1) + "\nAcc: " + str(acc.item()))
 
 if __name__ == '__main__':
     main()

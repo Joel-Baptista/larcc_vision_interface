@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision.models import inception_v3, Inception_V3_Weights
 from torchsummary import summary
-from losses import SupConLoss, SimpleConLoss
+from hand_classification.network.ptorch.losses import SupConLoss, SimpleConLoss
 
 
 class InceptionV3(nn.Module):
@@ -35,7 +35,7 @@ class InceptionV3(nn.Module):
             # nn.Linear(128, 32),
             # nn.ReLU(),
             )
-        self.model.fc.requires_grad = True
+        self.model.fc.requires_grad = False
 
 
         modules_proj_head = []
@@ -69,7 +69,7 @@ class InceptionV3(nn.Module):
         #     nn.Linear(64, 32),
         #     nn.ReLU(),
         #     )
-        self.proj_head.requires_grad_= True
+        self.proj_head.requires_grad_= False
 
 
         self.classifier = nn.Linear(class_features, num_classes)

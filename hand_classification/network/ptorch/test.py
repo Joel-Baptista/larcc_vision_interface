@@ -9,6 +9,8 @@ import os
 import numpy as np
 import csv
 import argparse
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, recall_score, \
+    precision_score, f1_score
 # import matplotlib.pyplot as plt
 
 
@@ -141,7 +143,10 @@ def main():
 
     test_acc = running_corrects.double() / dataset_sizes
 
+    f1 = f1_score(test_labels, test_preds, average=None)
+
     print('Test Accuracy of the model on the {:.0f} test images: {:.2f}'.format(dataset_sizes, 100 * test_acc))
+    print('Test F1 score of the model on the {:.0f} test images: {:.2f}'.format(dataset_sizes, 100 * np.mean(f1)))
 
 
 if __name__ == '__main__':

@@ -215,8 +215,13 @@ def test(model, dataloaders, paths, device):
     model.eval()
     test_labels = []
     test_preds = []
+    logits = []
+    file_names = []
     running_corrects = 0
-    for inputs, labels in dataloaders["test"]:
+
+    count_tested = 0
+
+    for j, (inputs, labels) in enumerate(dataloaders["test"], 0):
         inputs = inputs.to(device)
         labels = labels.to(device)
 
@@ -228,16 +233,30 @@ def test(model, dataloaders, paths, device):
             
             for i in range(0, len(labels)):
 
+                idx = dataloaders["test"].batch_size * j + i
+
+                sample_fname, _ = dataloaders.dataset.samples[idx]
+
                 test_labels.append(labels[i].item())
                 test_preds.append(preds[i].item())
+                file_names.append(sample_fname)
+
+                logit = outputs[i]
+
+                # logit = softmax(logit)
+
+                logits.append(logit.to('cpu').detach().numpy())
+                count_tested += 1
 
     with open(os.path.join(paths["results"], f'{model.name}', "multi_user", f'{model.name}_test.csv'), 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions"])
+        writer = csv.DictWriter(csvfile, fieldnames=["labels", "predictions", "logits", "filename"])
         writer.writeheader()
         for i in range(0, len(test_preds)):
 
             row = {"labels": test_labels[i], 
-                    "predictions": test_preds[i]}
+                    "predictions": test_preds[i],
+                    "logits": logits[i],
+                    "filename": file_names[i]}
             
             writer.writerow(row)
 
