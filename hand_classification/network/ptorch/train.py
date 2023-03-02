@@ -1,9 +1,8 @@
-from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptionV3
+from networks import InceptionV3
 import torch
 import time
 import copy
-import torchvision
-from torchvision import datasets, transforms
+from torchvision import transforms
 import os
 import numpy as np
 import csv
@@ -40,6 +39,8 @@ def main():
     parser.add_argument('-lt', '--load_train', action='store_true', default=False, help='Load train data')
     parser.add_argument('-td', '--train_dataset', type=str, default='train', help='Train dataset')
     parser.add_argument('-m', '--model', type=str, default="InceptionV3", help='Base model name')
+    parser.add_argument('-luf', '--last_unfrozen', type=int, default=15, help='Last unfrozen layer')
+    parser.add_argument('-cf', '--contrastive_features', type=int, default=16, help='Test dataset name')
 
     args = parser.parse_args()
 
@@ -57,9 +58,12 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    unfreeze_layers = []
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, device=device, con_features=16, dropout=0.3, train_encoder=False)
+    # unfreeze_layers = []
+    unfreeze_layers = list(np.arange(args.last_unfrozen, 20))
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, device=device, class_features=2048,
+                        con_features=args.contrastive_features, dropout=0.3, train_encoder=False)
     model.name = f"{args.model}"
+    print("Model name: ", model.name)
     num_epochs = args.epochs
     if args.load_train:
         model.load_state_dict(torch.load(f"{data_dir}/results/{model.name}/{model.name}.pth"))
@@ -96,14 +100,14 @@ def main():
             # transforms.RandomResizedCrop(224, scale=(0.9, 1)),
             # transforms.RandomHorizontalFlip(),
             transforms.RandomApply(torch.nn.ModuleList([transforms.RandomResizedCrop(299, scale=(0.7, 1.3))]), p=0.3),
-            transforms.RandomApply(torch.nn.ModuleList([transforms.RandAugment(magnitude=9)]), p=0.8),
+            transforms.RandomApply(torch.nn.ModuleList([transforms.RandAugment(magnitude=9)]), p=0.9),
             transforms.ToTensor(),
             # transforms.RandomErasing(p = 0.5, scale=(0.02, 0.1)),
             transforms.Normalize(mean, std)
         ])
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= paths["test_dataset"], shuffle=True, split=[0.2, 0.2])
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= None, shuffle=True, split=[0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader}
@@ -132,20 +136,28 @@ def main():
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
 
+    if len(unfreeze_layers) == 0:
+        unfreeze_layers = [0]
     
-    data = {
+    data = {"train_model": "train",
+            "unfrozen_layers": float(unfreeze_layers[0]),
             "contrastive_features": float(model.con_features),
             "class_features": float(model.class_features),
             "dropout": float(model.drop_out),
             "learning_rate": float(model.learning_rate),
             "batch_size": float(args.batch_size),
             "epochs": float(args.epochs),
+            "train_samples": dataset_sizes["train"],
+            "val_samples": dataset_sizes["val"],
+            "test_samples": dataset_sizes["test"],
+            "augmentation": float(args.augmentation)
             }
+
 
     print(data)
     json_data = json.dumps(data)
 
-    with open(data_saving_path + 'train_settings.json', 'w') as outfile:
+    with open(data_saving_path + '/train_settings.json', 'w') as outfile:
         outfile.write(json_data)
 
     model.to(device)
@@ -188,6 +200,8 @@ def main():
             running_loss = 0.0
             running_corrects = 0
 
+            data_size = {"train": 0, "val": 0}
+
             # Iterate over data.
             for inputs, labels in dataloaders[phase]:
                 inputs = inputs.to(device)
@@ -212,11 +226,13 @@ def main():
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
 
+                data_size[phase] += inputs.size(0)
 
-            epoch_loss = running_loss / dataset_sizes[phase]
+
+            epoch_loss = running_loss / data_size[phase]
             history[f"{phase}_loss"].append(epoch_loss)
 
-            epoch_acc = running_corrects.double() / dataset_sizes[phase]
+            epoch_acc = running_corrects.double() / data_size[phase]
             history[f"{phase}_acc"].append(epoch_acc.item())
 
             print('{} Loss: {:.4f} Acc: {:.4f}'.format(
@@ -293,14 +309,18 @@ def main():
     test_labels = []
     test_preds = []
     running_corrects = 0
+    count_test = 0
     for inputs, labels in dataloaders["test"]:
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-        outputs, _ = model(inputs)
-        _, preds = torch.max(outputs, 1)
+        with torch.no_grad():
+            outputs, _ = model(inputs)
+            _, preds = torch.max(outputs, 1)
 
-        running_corrects += torch.sum(preds == labels.data)
+            running_corrects += torch.sum(preds == labels.data)
+
+            count_test += inputs.size(0)
         
         for i in range(0, len(labels)):
 
@@ -318,9 +338,9 @@ def main():
             writer.writerow(row)
 
 
-    test_acc = running_corrects.double() / dataset_sizes["test"]
+    test_acc = running_corrects.double() / count_test
 
-    print('Test Accuracy of the model on the {:.0f} test images: {:.2f}'.format(dataset_sizes["test"], 100 * test_acc))
+    print('Test Accuracy of the model on the {:.0f} test images: {:.2f}'.format(count_test, 100 * test_acc))
 
 
 if __name__ == '__main__':

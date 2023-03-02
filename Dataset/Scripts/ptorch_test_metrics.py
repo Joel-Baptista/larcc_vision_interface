@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--test_dataset', type=str, default="kinect_test", help='Test dataset name')
     parser.add_argument('-c', '--contrastive', action="store_true", default=False, help="Train data is contrastive")
     parser.add_argument('-mu', '--multi_user', action="store_true", default=False, help="Select multiple users for testing")
-    parser.add_argument('-tr', '--treshold', type=float, default=0.9, help="Decision threshold")
+    parser.add_argument('-tr', '--treshold', type=float, default=None, help="Decision threshold")
 
     args = parser.parse_args()
     
@@ -36,6 +36,10 @@ if __name__ == '__main__':
 
     if args.multi_user:
         datasets = ["kinect_daniel", "kinect_manel", "kinect_lucas"]
+        test = "multi_user"
+        if not os.path.exists(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}"):
+            os.mkdir(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}")
+
     else:
         datasets = []
 
@@ -71,11 +75,13 @@ if __name__ == '__main__':
         ground_truth.append(labels[df["labels"][i]])
         predictions.append(labels[df["predictions"][i]])
 
-        if labels[df["labels"][i]] != labels[df["predictions"][i]]:
-            format_logits(df["logits"][i])
-            wrong_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
-        else:
-            right_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+
+        if args.treshold is not None:
+            if labels[df["labels"][i]] != labels[df["predictions"][i]]:
+                format_logits(df["logits"][i])
+                wrong_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+            else:
+                right_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
 
     print("Averge predictions probabilities for wrong predictions")
 
@@ -126,27 +132,29 @@ if __name__ == '__main__':
             json.dump(dic_results, outfile)
     
 
-    ground_truth = []
-    tr_predictions = []
-    labels.append("nothing")
 
-    for i in range(0, len(df["labels"])):
+    if args.treshold is not None:
+        print("Lezzz gooo")
+        ground_truth = []
+        tr_predictions = []
+        labels.append("nothing")
+        for i in range(0, len(df["labels"])):
 
-        logit = format_logits(df["logits"][i])
+            logit = format_logits(df["logits"][i])
 
-        ground_truth.append(labels[df["labels"][i]])
+            ground_truth.append(labels[df["labels"][i]])
 
-        if logit[df["predictions"][i]] >= args.treshold:
-            tr_predictions.append(labels[df["predictions"][i]])
-        else:
-            tr_predictions.append("nothing")
-    
-    
-    cm_t = confusion_matrix(ground_truth, tr_predictions, labels=labels, normalize='pred')
-    cm_t = np.round(100 * cm_t, 2)
-    blues = plt.cm.Blues
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm_t, display_labels=labels)
-    disp.plot(cmap=blues, values_format='')
+            if logit[df["predictions"][i]] >= args.treshold:
+                tr_predictions.append(labels[df["predictions"][i]])
+            else:
+                tr_predictions.append("nothing")
+        
+        
+        cm_t = confusion_matrix(ground_truth, tr_predictions, labels=labels, normalize='pred')
+        cm_t = np.round(100 * cm_t, 2)
+        blues = plt.cm.Blues
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm_t, display_labels=labels)
+        disp.plot(cmap=blues, values_format='')
 
 
     loss_lim = (0, 4)

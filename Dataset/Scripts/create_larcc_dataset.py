@@ -8,7 +8,7 @@ import copy
 
 if __name__ == '__main__':
 
-    dataset = "kinect_daniel"
+    dataset = "kinect"
 
     # dataset_path = f"/home/{USERNAME}/Datasets/ASL/test"
     dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/{dataset}"
@@ -40,21 +40,25 @@ if __name__ == '__main__':
             pd.detect_pose()
             pd.find_hands(x_lim=50, y_lim=50)
 
-            if pd.cv_image_detected_right is not None:
-                # cv2.imshow("Image Right", pd.cv_image_detected_right)
-                count += 1
-                cv2.imwrite(f"{saving_path}/{g}/{count}_{file}", pd.cv_image_detected_right)
+            # if pd.cv_image_detected_right is not None:
+            #     # cv2.imshow("Image Right", pd.cv_image_detected_right)
+            #     count += 1
+            #     cv2.imwrite(f"{saving_path}/{g}/{count}_{file}", pd.cv_image_detected_right)
 
-            if pd.cv_image_detected_left is not None:
-                # cv2.imshow("Image Left", cv2.flip(pd.cv_image_detected_left, 1))
-                count += 1
-                cv2.imwrite(f"{saving_path}/{g}/{count}_{file}", cv2.flip(pd.cv_image_detected_left, 1))
+            # if pd.cv_image_detected_left is not None:
+            #     # cv2.imshow("Image Left", cv2.flip(pd.cv_image_detected_left, 1))
+            #     count += 1
+            #     cv2.imwrite(f"{saving_path}/{g}/{count}_{file}", cv2.flip(pd.cv_image_detected_left, 1))
 
-            # cv2.imshow("Original", pd.cv_image_detected)
-            # key = cv2.waitKey()
+            cv2.imshow("Original", pd.cv_image_detected)
+            key = cv2.waitKey()
 
-            # if key == ord('q'):
-            #     exit()
+            if key == ord('q'):
+                exit()
+
+            if key == ord('s'):
+                print("Image saved")
+                cv2.imwrite(f"/home/{USERNAME}/Documentos/paper/full_image_mediapipe.png", pd.cv_image_detected)
 
 
 

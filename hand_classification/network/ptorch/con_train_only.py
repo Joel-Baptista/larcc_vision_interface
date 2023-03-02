@@ -1,17 +1,13 @@
-from networks import InceptioV3_frozen, InceptioV3_unfrozen, InceptionV3
+from networks import InceptionV3
 import torch
 import time
 import copy
-import torchvision
-from torchvision import datasets, transforms
+from torchvision import transforms
 import os
 import numpy as np
 import csv
 import argparse
-from funcs import test
-import torch.nn as nn
 from datasets import get_train_valid_loader
-from losses import SupConLoss, SimpleConLoss
 import json
 # import matplotlib.pyplot as plt
 
@@ -43,6 +39,8 @@ def main():
     parser.add_argument('-td', '--train_dataset', type=str, default='train', help='Train dataset')
     parser.add_argument('-m', '--model', type=str, default="InceptionV3", help='Base model name')
     parser.add_argument('-t', '--temperature', type=float, default=0.07, help='Temperature for contrastive loss')
+    parser.add_argument('-cf', '--contrastive_features', type=int, default=16, help='Test dataset name')
+    parser.add_argument('-luf', '--last_unfrozen', type=int, default=15, help='Last unfrozen layer')
 
     args = parser.parse_args()
 
@@ -60,8 +58,9 @@ def main():
 
     data_dir = f'{os.getenv("HOME")}/Datasets/ASL/kinect/'
 
-    unfreeze_layers = list(np.arange(13, 19))
-    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, device=device, con_features=16, dropout=0.3)
+    unfreeze_layers = list(np.arange(args.last_unfrozen, 20))
+    model = InceptionV3(4, args.learning_rate, unfreeze_layers= unfreeze_layers, temp=args.temperature, class_features= 2048, 
+                        device=device, con_features=args.contrastive_features, dropout=0.3, train_encoder=True)
     model.name = f"{args.model}"
     num_epochs = args.epochs
 
@@ -109,7 +108,7 @@ def main():
 
     
     train_loader, val_loader, test_loader, dataset_sizes = get_train_valid_loader(
-        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= paths["test_dataset"], shuffle=True, split=[0.2, 0.2])
+        os.path.join(data_dir, args.train_dataset), args.batch_size, data_transforms, None, test_path= None, shuffle=True, split=[0.2, 0.2])
 
 
     dataloaders = {"train": train_loader, "val": val_loader, "test": test_loader, "dataset_sizes": dataset_sizes}
@@ -137,19 +136,27 @@ def main():
     if not os.path.exists(data_saving_path):
         os.mkdir(data_saving_path)
     
-    data = {"unfrozen_layers": float(unfreeze_layers[0]),
+    if len(unfreeze_layers) == 0:
+        unfreeze_layers = [0]
+    
+    data = {"train_model": "train",
+            "unfrozen_layers": float(unfreeze_layers[0]),
             "contrastive_features": float(model.con_features),
             "class_features": float(model.class_features),
             "dropout": float(model.drop_out),
             "learning_rate": float(model.learning_rate),
             "batch_size": float(args.batch_size),
             "epochs": float(args.epochs),
+            "train_samples": dataset_sizes["train"],
+            "val_samples": dataset_sizes["val"],
+            "test_samples": dataset_sizes["test"],
+            "augmentation": float(args.augmentation)
             }
 
     print(data)
     json_data = json.dumps(data)
 
-    with open(data_saving_path + 'train_settings.json', 'w') as outfile:
+    with open(data_saving_path + '/train_settings.json', 'w') as outfile:
         outfile.write(json_data)
 
     model.to(device)
@@ -168,6 +175,7 @@ def main():
         print('Epoch {}/{}'.format(epoch + 1, num_epochs))
         print('-' * 10)
 
+        data_size = {"train": 0, "val": 0}
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
             if phase == 'train':
@@ -187,7 +195,7 @@ def main():
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
                     
-                    outputs, contrastive_features = model(inputs)
+                    _, contrastive_features = model(inputs)
 
                     loss_con = model.con_loss(contrastive_features.unsqueeze(2), labels) # SupConLoss
 
@@ -204,8 +212,9 @@ def main():
                 # statistics
 
                 running_con_loss += loss_con.item() * inputs.size(0)
+                data_size[phase] += inputs.size(0)
 
-            epoch_con_loss = running_con_loss / dataset_sizes[phase]
+            epoch_con_loss = running_con_loss / data_size[phase]
             history[f"{phase}_con_loss"].append(epoch_con_loss)
 
 
@@ -243,7 +252,7 @@ def main():
             with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
                 writer.writeheader()
-                for i in range(0, len(history["train_loss"])):
+                for i in range(0, len(history["train_con_loss"])):
 
                     row = {"epoch": i+1, 
                         "train_con_loss": history[f"train_con_loss"][i],
@@ -268,7 +277,7 @@ def main():
     with open(os.path.join(data_dir, "results", f"{model.name}", f"{model.name}_train.csv"), 'w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=history_collumns)
         writer.writeheader()
-        for i in range(0, len(history["train_loss"])):
+        for i in range(0, len(history["train_con_loss"])):
 
             row = {"epoch": i+1, 
                 "train_con_loss": history[f"train_con_loss"][i],

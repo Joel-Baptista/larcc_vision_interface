@@ -36,6 +36,7 @@ def main():
     parser.add_argument('-bs', '--batch_size', type=int, default=64, help='Batch size for testing')
     parser.add_argument('-m', '--model_name', type=str, default="InceptionV3_unfrozen", help='Model name')
     parser.add_argument('-t', '--test_dataset', type=str, default="kinect_test", help='Test dataset name')
+    parser.add_argument('-cf', '--contrastive_features', type=int, default=16, help='Test dataset name')
 
     args = parser.parse_args()
 
@@ -48,7 +49,7 @@ def main():
     print("Training device: ", device)
 
     # model = choose_model(args.model_name, device)
-    model = InceptionV3(4, 0.0001, unfreeze_layers= list(np.arange(13, 19)), device=device, con_features=16)
+    model = InceptionV3(4, 0.0001, unfreeze_layers= list(np.arange(13, 20)), class_features=2048, device=device, con_features=args.contrastive_features)
     model.name = args.model_name
 
     trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device(device))
@@ -60,6 +61,7 @@ def main():
     data_transforms = transforms.Compose([
             transforms.Resize(299),
             # transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(p=1),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])
