@@ -15,7 +15,7 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect_test"):
+    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/train2"):
         rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
         # rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
 
@@ -48,7 +48,7 @@ class DatasetCapture:
 
             self.pd.cv_image = copy.deepcopy(self.frame)
             self.pd.detect_pose()
-            self.pd.find_hands(x_lim=100, y_lim=100)
+            self.pd.find_hands(x_lim=50, y_lim=50)
 
             cv2.imshow('Video feed', self.pd.cv_image_detected)
             key = cv2.waitKey(1)

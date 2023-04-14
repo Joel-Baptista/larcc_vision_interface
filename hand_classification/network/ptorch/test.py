@@ -40,7 +40,6 @@ def main():
 
     args = parser.parse_args()
 
-
     print("Script's arguments: ",args)
     dataset = args.test_dataset
     dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/kinect/{dataset}'
