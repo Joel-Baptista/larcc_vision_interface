@@ -15,9 +15,9 @@ import copy
 
 
 class DatasetCapture:
-    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/train2"):
-        rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
-        # rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
+    def __init__(self, fps=15, save_path=f"/home/{USERNAME}/Datasets/Larcc_dataset/no_gesture"):
+        # rospy.Subscriber("/camera/rgb/image_raw", Image, self.get_image_callback)
+        rospy.Subscriber("/camera/color/image_raw", Image, self.get_image_callback) # Astra
 
         self.frame = None
         self.bridge = CvBridge()
@@ -29,11 +29,13 @@ class DatasetCapture:
         with open(f'{ROOT_DIR}/Dataset/configs/larcc_dataset_config.json') as f:
             config = json.load(f)
 
-        for dataset in config:
-            gestures = config[dataset]["gestures"]
-            for g in gestures:
-                if not os.path.exists(f"{save_path}/{g}"):
-                    os.mkdir(f"{save_path}/{g}")
+        # config[dataset]["gestures"] = ["None"]
+
+        # for dataset in config:
+        #     gestures = config[dataset]["gestures"]
+        #     for g in gestures:
+        #         if not os.path.exists(f"{save_path}/{g}"):
+        #             os.mkdir(f"{save_path}/{g}")
 
         print("Waiting!!")
         while True:
@@ -43,6 +45,7 @@ class DatasetCapture:
         st = time.time()
         record = False
         buffer = []
+        cv2.namedWindow("Video feed", cv2.WINDOW_NORMAL)
 
         while True:
 

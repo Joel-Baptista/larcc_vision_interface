@@ -42,7 +42,8 @@ def main():
 
     print("Script's arguments: ",args)
     dataset = args.test_dataset
-    dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/kinect/{dataset}'
+    # dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/kinect/{dataset}'
+    dataset_path = f'{os.getenv("HOME")}/Datasets/ASL/no_gesture'
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print("Training device: ", device)
@@ -60,7 +61,7 @@ def main():
     data_transforms = transforms.Compose([
             transforms.Resize(299),
             # transforms.CenterCrop(224),
-            transforms.RandomHorizontalFlip(p=1),
+            # transforms.RandomHorizontalFlip(p=1),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])

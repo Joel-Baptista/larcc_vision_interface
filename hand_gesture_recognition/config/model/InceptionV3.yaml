@@ -1,0 +1,3 @@
+model_name: "InceptionV3"
+con_features: 16
+tresholds: [6, 10, 8, 9]

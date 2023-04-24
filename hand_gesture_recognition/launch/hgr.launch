@@ -1,0 +1,11 @@
+<launch>
+
+    <arg name="model_name" default="InceptionV3"/>
+
+    <group ns="hgr">
+        <rosparam file="$(find hand_gesture_recognition)/config/model/$(arg model_name).yaml" />
+    </group>
+
+    <node pkg="hand_gesture_recognition" name="hand_gesture_recognition" type="hand_gesture_recognition_node.py" />
+    
+</launch>

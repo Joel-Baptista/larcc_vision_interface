@@ -17,8 +17,10 @@ class HandGestureRecognition:
 
         # Get initial data from rosparams
 
-        image_topic = rospy.get_param("/hgr/image_topic")
-
+        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
+        model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
+        con_features = rospy.get_param("/hgr/con_features", default=16)
+        tresholds = rospy.get_param("/hgr/tresholds", default=[0, 0, 0, 0])
         
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
@@ -42,14 +44,14 @@ class HandGestureRecognition:
         org = (0, 90)
         thickness = 1
         font = 1
-        gestures = ["A", "F", "L", "Y"]
+        gestures = ["A", "F", "L", "Y", "NONE"]
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("Training device: ", device)
 
         model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=device,
-                    con_features=16)
-        model.name = "InceptionV3"
+                    con_features=con_features)
+        model.name = model_name
 
         trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device(device))
         model.load_state_dict(trained_weights)
@@ -93,6 +95,12 @@ class HandGestureRecognition:
                 
                 print(preds)
                 print(outputs)
+
+                if outputs[0][preds[0]] <= tresholds[preds[0]]:
+                    preds[0] = 4
+
+                if outputs[1][preds[1]] <= tresholds[preds[1]]:
+                    preds[1] = 4
 
                 hand_left = cv2.putText(hand_left, gestures[preds[0]], org, cv2.FONT_HERSHEY_SIMPLEX,
                                 font, (255, 0, 0), thickness, cv2.LINE_AA)

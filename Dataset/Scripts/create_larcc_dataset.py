@@ -9,14 +9,14 @@ import copy
 if __name__ == '__main__':
 
     # dataset_path = f"/home/{USERNAME}/Datasets/ASL/test"
-    dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/kinect_test"
-    saving_path = f"/home/{USERNAME}/Datasets/ASL/test_kinect"
-    gestures = ["A", "F", "L", "Y"]
+    dataset_path = f"/home/{USERNAME}/Datasets/Larcc_dataset/no_gesture"
+    saving_path = f"/home/{USERNAME}/Datasets/ASL/no_gesture"
+    gestures = ["NONE"]
     # gestures = ["L", "Y"]
     pd = PoseDetection()
 
-    for g in gestures:
 
+    for g in gestures:
         res = os.listdir(f"{dataset_path}/{g}")
 
         num_list = []
@@ -49,7 +49,7 @@ if __name__ == '__main__':
                 cv2.imwrite(f"{saving_path}/{g}/{count}_{file}", cv2.flip(pd.cv_image_detected_left, 1))
 
             cv2.imshow("Original", pd.cv_image_detected)
-            key = cv2.waitKey()
+            key = cv2.waitKey(1)
 
             if key == ord('q'):
                 exit()

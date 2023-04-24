@@ -33,6 +33,7 @@ if __name__ == '__main__':
     model = args.model_name
     test  = args.test_dataset
     labels = ["A", "F", "L", "Y"]
+    # labels = ["NONE"]
 
     if args.multi_user:
         datasets = ["kinect_daniel", "kinect_manel", "kinect_lucas"]
@@ -65,16 +66,20 @@ if __name__ == '__main__':
     wrong_predictions = {}
     right_predictions = {}
 
-    for label in labels:
+    logits = {}
 
+    for label in labels:
+        
+        logits[label] = []
         wrong_predictions[label] = []
         right_predictions[label] = []
 
     for i in range(0, len(df["labels"])):
-
+        
         ground_truth.append(labels[df["labels"][i]])
         predictions.append(labels[df["predictions"][i]])
 
+        logits[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
 
         if args.treshold is not None:
             if labels[df["labels"][i]] != labels[df["predictions"][i]]:
@@ -82,6 +87,31 @@ if __name__ == '__main__':
                 wrong_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
             else:
                 right_predictions[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+
+    
+    n_bins = 40
+
+    # fig, ((ax0, ax1), (ax2, ax3)) = plt.subplots(nrows=2, ncols=2)
+
+    fig, axs = plt.subplots(nrows=2, ncols=2)
+    colors = ['red', 'tan', 'lime', "blue"]
+
+    # print(np.array(logits[label[0]]).T.tolist())
+
+
+    for i, ax_col in enumerate(axs):
+        for j, ax_lin in enumerate(ax_col):
+            print(ax_lin)
+
+            idx = j + 2 * i
+
+            ax_lin.hist(np.array(logits[labels[idx]]).T.tolist(), n_bins, density=True, histtype='bar', stacked=False)
+            ax_lin.set_title(labels[idx])
+            ax_lin.legend(labels)
+        
+    fig.tight_layout()
+    plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/logits_hist.png")
+    plt.show()
 
     print("Averge predictions probabilities for wrong predictions")
 
@@ -134,7 +164,6 @@ if __name__ == '__main__':
 
 
     if args.treshold is not None:
-        print("Lezzz gooo")
         ground_truth = []
         tr_predictions = []
         labels.append("nothing")
@@ -231,7 +260,7 @@ if __name__ == '__main__':
             plt.xlabel('epoch')
 
 
-        plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}//train_curves.png")
+        plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/train_curves.png")
     
     plt.show()
 
