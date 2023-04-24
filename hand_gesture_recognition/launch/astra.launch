@@ -1,0 +1,11 @@
+<launch>
+    
+    <group ns="hgr">
+        <rosparam file="$(find hand_gesture_recognition)/config/astra.yaml" />
+    </group>
+
+    <include file="$(find astra_camera)/launch/astra_pro.launch"/>
+
+    <node pkg="hand_gesture_recognition" name="hand_gesture_recognition" type="hand_gesture_recognition_node.py" />
+    
+</launch>

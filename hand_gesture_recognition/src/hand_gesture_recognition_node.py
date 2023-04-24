@@ -7,26 +7,22 @@ from cv_bridge import CvBridge
 import copy
 import mediapipe as mp
 import os
-from vision_config.vision_definitions import ROOT_DIR
-from hand_classification.network.ptorch.networks import InceptionV3
+from hand_gesture_recognition.utils.networks import InceptionV3
 import torch
-from torchvision import datasets, transforms
-from PIL import Image as Im
-# from pose_detection import PoseDetection
+from torchvision import transforms
 
 
 class HandGestureRecognition:
     def __init__(self) -> None:
+
+        # Get initial data from rosparams
+
+        image_topic = rospy.get_param("/hgr/image_topic")
+
         
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
         self.right_hand_points = (15, 17, 19, 21)
-
-        self.x_lim_l = 50
-        self.y_lim_l = 50
-
-        self.x_lim_r = 50
-        self.y_lim_r = 50
 
         self.bridge = CvBridge()
 
@@ -38,9 +34,7 @@ class HandGestureRecognition:
                                       enable_segmentation=False,
                                       min_detection_confidence=0.7)
 
-        rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
-        self.pub_right = rospy.Publisher("/hand/right", Image, queue_size=10)
-        self.pub_left = rospy.Publisher("/hand/left", Image, queue_size=10)
+        rospy.Subscriber(image_topic, Image, self.image_callback)
 
         self.cv_image = None
         self.bridge = CvBridge()
@@ -49,19 +43,18 @@ class HandGestureRecognition:
         thickness = 1
         font = 1
         gestures = ["A", "F", "L", "Y"]
-        # gestures = ["G1", "G2", "G5", "G6"]
-        # model = choose_model(args.model_name, device)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("Training device: ", device)
 
         model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=device,
-                    con_features=64)
-        model.name = "InceptionV3_multi_loss"
+                    con_features=16)
+        model.name = "InceptionV3"
 
         trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device(device))
         model.load_state_dict(trained_weights)
 
+        model.eval()
 
         mean = np.array([0.5, 0.5, 0.5])
         std = np.array([0.25, 0.25, 0.25])
@@ -69,12 +62,13 @@ class HandGestureRecognition:
         data_transform = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize(299),
-            # transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
         ])
 
-
+        cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("Left Hand", cv2.WINDOW_NORMAL)
+        cv2.namedWindow("Right Hand", cv2.WINDOW_NORMAL)
 
         print("Waiting!!")
         while True:
@@ -87,8 +81,9 @@ class HandGestureRecognition:
 
 
             if hand_left is not None and hand_right is not None:
-                im1 = data_transform(hand_right)
-                im2 = data_transform(cv2.flip(hand_left, 1))
+
+                im1 = data_transform(cv2.flip(hand_left, 1))
+                im2 = data_transform(hand_right)
 
                 im_array_norm = torch.cat((im1.unsqueeze(0), im2.unsqueeze(0)), 0)
 
