@@ -9,6 +9,7 @@ import mediapipe as mp
 import os
 from hand_gesture_recognition.utils.networks import InceptionV3
 import torch
+import time
 from torchvision import transforms
 
 
@@ -17,7 +18,7 @@ class HandGestureRecognition:
 
         # Get initial data from rosparams
 
-        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
+        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
         model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
         con_features = rospy.get_param("/hgr/con_features", default=16)
         tresholds = rospy.get_param("/hgr/tresholds", default=[0, 0, 0, 0])
@@ -58,6 +59,8 @@ class HandGestureRecognition:
 
         model.eval()
 
+        model.to(device)
+
         mean = np.array([0.5, 0.5, 0.5])
         std = np.array([0.25, 0.25, 0.25])
 
@@ -72,6 +75,7 @@ class HandGestureRecognition:
         cv2.namedWindow("Left Hand", cv2.WINDOW_NORMAL)
         cv2.namedWindow("Right Hand", cv2.WINDOW_NORMAL)
 
+
         print("Waiting!!")
         while True:
             if self.cv_image is not None:
@@ -81,21 +85,24 @@ class HandGestureRecognition:
 
             hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=50, y_lim=50)
 
+            
 
             if hand_left is not None and hand_right is not None:
+
+                
 
                 im1 = data_transform(cv2.flip(hand_left, 1))
                 im2 = data_transform(hand_right)
 
                 im_array_norm = torch.cat((im1.unsqueeze(0), im2.unsqueeze(0)), 0)
+                im_array_norm = im_array_norm.to(device)
 
+                
                 with torch.no_grad():
                     outputs, _ = model(im_array_norm)
                     _, preds = torch.max(outputs, 1)
-                
-                print(preds)
-                print(outputs)
 
+                
                 if outputs[0][preds[0]] <= tresholds[preds[0]]:
                     preds[0] = 4
 
@@ -107,6 +114,7 @@ class HandGestureRecognition:
 
                 hand_right = cv2.putText(hand_right, gestures[preds[1]], org, cv2.FONT_HERSHEY_SIMPLEX,
                                         font, (255, 0, 0), thickness, cv2.LINE_AA)
+                
 
             cv2.imshow('Original Image', cv2.cvtColor(keypoints_image, cv2.COLOR_BGR2RGB))
 
@@ -124,8 +132,8 @@ class HandGestureRecognition:
         cv2.destroyAllWindows()
 
     def image_callback(self, msg):
+        
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
-
 
     def find_hands(self, input_image, x_lim, y_lim):
 
