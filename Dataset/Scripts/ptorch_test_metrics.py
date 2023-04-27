@@ -7,6 +7,11 @@ import numpy as np
 import json
 import argparse
 
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
 def format_logits(logit):
 
     logit = logit.strip('][').split(' ')
@@ -49,13 +54,17 @@ if __name__ == '__main__':
 
     print("Testing: ", datasets)
 
-    df_aux = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{datasets[0]}/test_results_{model}.csv")
+    # path = f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{datasets[0]}/test_results_{model}.csv"
+
+    path = f"/home/{os.environ.get('USER')}/results/InceptionV3/{test}/test_results_{model}.csv"
+
+    df_aux = pd.read_csv(path)
 
     df = pd.DataFrame(columns=df_aux.columns)
 
     for dataset in datasets:
-        print(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{dataset}/test_results_{model}.csv")
-        df_aux = pd.read_csv(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{dataset}/test_results_{model}.csv")    
+        print(path)
+        df_aux = pd.read_csv(path)    
 
         df = pd.concat([df, df_aux], axis=0, ignore_index=True)
 
@@ -67,19 +76,23 @@ if __name__ == '__main__':
     right_predictions = {}
 
     logits = {}
+    confidences = {}
 
     for label in labels:
         
+        confidences[label] = []
         logits[label] = []
         wrong_predictions[label] = []
         right_predictions[label] = []
-
+ 
     for i in range(0, len(df["labels"])):
-        
+
         ground_truth.append(labels[df["labels"][i]])
         predictions.append(labels[df["predictions"][i]])
 
         logits[labels[df["labels"][i]]].append(format_logits(df["logits"][i]))
+
+        confidences[labels[df["labels"][i]]].append(softmax(format_logits(df["logits"][i])))
 
         if args.treshold is not None:
             if labels[df["labels"][i]] != labels[df["predictions"][i]]:
@@ -98,7 +111,6 @@ if __name__ == '__main__':
 
     # print(np.array(logits[label[0]]).T.tolist())
 
-
     for i, ax_col in enumerate(axs):
         for j, ax_lin in enumerate(ax_col):
             print(ax_lin)
@@ -110,7 +122,8 @@ if __name__ == '__main__':
             ax_lin.legend(labels)
         
     fig.tight_layout()
-    plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/logits_hist.png")
+    plt.savefig(f"/home/{os.environ.get('USER')}/results/InceptionV3/{test}/logits_hist.png")
+    # plt.savefig(f"/home/{os.environ.get('USER')}/Datasets/ASL/kinect/results/{model}/{test}/logits_hist.png")
     plt.show()
 
     print("Averge predictions probabilities for wrong predictions")
@@ -126,7 +139,7 @@ if __name__ == '__main__':
         print(key, ": ", np.average(right_predictions[key], axis=0))
 
 
-    cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='true')
+    cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='pred')
     cm = np.round(100 * cm, 2)
     blues = plt.cm.Blues
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
