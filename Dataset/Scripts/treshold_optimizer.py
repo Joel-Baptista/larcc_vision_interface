@@ -18,6 +18,29 @@ def format_logits(logit):
 
     return logit
 
+def calculate_f1_score(tresh, df, labels):
+
+    ground_truth = []
+    predictions = []
+    print(tresh)
+    for i in range(0, len(df["labels"])):
+
+        ground_truth.append(labels[df["labels"][i]])
+
+        p = df["predictions"][i]
+        l = format_logits(df["logits"][i])
+
+        if l[p] < tresh[p]:
+            p = 4
+
+        predictions.append(labels[p])
+
+
+    f1 = precision_score(ground_truth, predictions, average=None)
+
+    return np.mean(f1)
+    
+
 if __name__ == '__main__':
 
 
@@ -46,42 +69,45 @@ if __name__ == '__main__':
     logits = {}
     confidences = {}
 
-    tresholds =  np.linspace(0, 20, 50)
+    tresholds =  np.linspace(0, 15, 200)
     t_best = [0] * 4
     f1_best = 0
-
-    for i, t1 in enumerate(tresholds):
-        for j, t2 in enumerate(tresholds):
-            for k, t3 in enumerate(tresholds):
-                for l, t4 in enumerate(tresholds):
-                    
-                    st = time.time()
-                    tresh = [t1, t2, t3, t4]
-
-                    ground_truth = []
-                    predictions = []
-
-                    for i in range(0, len(df["labels"])):
-
-                        ground_truth.append(labels[df["labels"][i]])
-
-                        p = df["predictions"][i]
-                        l = format_logits(df["logits"][i])
-
-                        if l[p] < tresh[p]:
-                            p = 4
-
-                        predictions.append(labels[p])
+    results = []
 
 
-                    f1 = f1_score(ground_truth, predictions, average=None)
-          
-                    f1_mean = np.mean(f1)
-                    
-                    if f1_mean > f1_best:
-                        t_best = tresh
-                        f1_best = f1_mean
-                        print(f"Found best case of f1 {f1_best} and treshold {t_best}") 
-                    
-                    print(time.time() - st)
-                    
+    for j in range(0, 4):
+
+        print(f"Optimizing {j} class")
+        for thresh in tresholds:
+            
+            ground_truth = []
+            predictions = []
+
+            for i in range(0, len(df["labels"])):
+
+                ground_truth.append(labels[df["labels"][i]])
+
+                p = df["predictions"][i]
+                l = format_logits(df["logits"][i])
+
+                if p == j and thresh > l[p]:
+                    p = 4
+
+                predictions.append(labels[p])
+
+
+            f1 = precision_score(ground_truth, predictions, average=None)
+
+            f1_mean = np.mean(f1)
+            
+            if f1_mean > f1_best:
+                t_best = thresh
+                f1_best = f1_mean
+                print(f"Found best case of f1 {f1_best} and treshold {t_best}") 
+        
+        results.append(t_best)
+
+
+results_f1 = calculate_f1_score(results, df, labels)
+print(f"Best thresholds: {results}")
+print(f"Best f1_score: {results_f1}")

@@ -22,8 +22,10 @@ if __name__ == '__main__':
 
 
     labels = ["A", "F", "L", "Y", "NONE"]
-    tresholds = [3, 3, 3, 3]
-    soft_tresholds = [0.8, 0.8, 0.8, 0.8]
+    tresholds = [0.41, 3.76, 5.81, 6.34] # F1 Optimized
+    # tresholds = [3.11, 8.04, 8.15, 8.25] # Precision Optimized
+
+    soft_tresholds = [-1] * 4
 
     path_classes = f"/home/{os.environ.get('USER')}/results/InceptionV3/multi_user/test_results_InceptionV3.csv"
     path_nones = f"/home/{os.environ.get('USER')}/results/InceptionV3/no_gesture/test_results_InceptionV3.csv"
@@ -120,10 +122,18 @@ if __name__ == '__main__':
         
     fig1.tight_layout()
 
-    cm = confusion_matrix(ground_truth, predictions, labels=labels, normalize='pred')
-    cm = np.round(100 * cm, 2)
+    cm_pred = confusion_matrix(ground_truth, predictions, labels=labels, normalize='pred')
+    cm_pred = np.round(100 * cm_pred, 2)
     blues = plt.cm.Blues
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-    disp.plot(cmap=blues, values_format='')
+    disp_pred = ConfusionMatrixDisplay(confusion_matrix=cm_pred, display_labels=labels)
+    disp_pred.plot(cmap=blues, values_format='')
+    plt.title(f'{tresholds} - Prediction Normalized')
+
+    cm_true = confusion_matrix(ground_truth, predictions, labels=labels, normalize='true')
+    cm_true = np.round(100 * cm_true, 2)
+    blues = plt.cm.Blues
+    disp_true = ConfusionMatrixDisplay(confusion_matrix=cm_true, display_labels=labels)
+    disp_true.plot(cmap=blues, values_format='')
+    plt.title(f'{tresholds} - Ground Truth Normalized')    
 
     plt.show()

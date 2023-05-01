@@ -38,7 +38,7 @@ def calculate_f1_score(tresh, df, labels):
         predictions.append(labels[p])
 
 
-    f1 = f1_score(ground_truth, predictions, average=None)
+    f1 = precision_score(ground_truth, predictions, average=None)
 
     return 1 - np.mean(f1)
     
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
             result = {"x":list(res["x"]), "y":res["fun"]}
 
-            with open(f'./results/{method}_{i}.json', 'w') as fp:
+            with open(f'./precision/{method}_{i}.json', 'w') as fp:
                 json.dump(result, fp)
 
     

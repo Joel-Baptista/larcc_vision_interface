@@ -18,10 +18,11 @@ class HandGestureRecognition:
 
         # Get initial data from rosparams
 
-        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
+        # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
+        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
         model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
         con_features = rospy.get_param("/hgr/con_features", default=16)
-        tresholds = rospy.get_param("/hgr/tresholds", default=[0, 0, 0, 0])
+        self.thresholds = rospy.get_param("/hgr/tresholds", default=[0, 0, 0, 0])
         
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
@@ -42,29 +43,33 @@ class HandGestureRecognition:
         self.cv_image = None
         self.bridge = CvBridge()
 
+        # Initialize variables for classification
         org = (0, 90)
         thickness = 1
         font = 1
         gestures = ["A", "F", "L", "Y", "NONE"]
 
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        print("Training device: ", device)
+        buffer_left = [4] * 5 # Initializes the buffer with 5 "NONE" gestures
+        buffer_right = [4] * 10
 
-        model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=device,
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print("Training device: ", self.device)
+
+        self.model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=self.device,
                     con_features=con_features)
-        model.name = model_name
+        self.model.name = model_name
 
-        trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{model.name}/{model.name}.pth', map_location=torch.device(device))
-        model.load_state_dict(trained_weights)
+        trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{self.model.name}/{self.model.name}.pth', map_location=torch.device(self.device))
+        self.model.load_state_dict(trained_weights)
 
-        model.eval()
+        self.model.eval()
 
-        model.to(device)
+        self.model.to(self.device)
 
         mean = np.array([0.5, 0.5, 0.5])
         std = np.array([0.25, 0.25, 0.25])
 
-        data_transform = transforms.Compose([
+        self.data_transform = transforms.Compose([
             transforms.ToPILImage(),
             transforms.Resize(299),
             transforms.ToTensor(),
@@ -85,35 +90,61 @@ class HandGestureRecognition:
 
             hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=50, y_lim=50)
 
-            
+            if hand_left is not None:
+                
+                pred_left, buffer_left = self.take_decision(buffer_left, hand_left, flip=True)
 
-            if hand_left is not None and hand_right is not None:
+            else:
+
+                pred_left = 4
+                # hand_left = np.zeros((100, 100, 3))
+
+            if hand_right is not None:
+                
+                pred_right, buffer_right = self.take_decision(buffer_right, hand_right, flip=False)
+
+            else:
+
+                pred_right = 4
+                # hand_right = np.zeros((100, 100, 3))
+
+
+
+            # if hand_left is not None and hand_right is not None:
+
+            #     im1 = data_transform(cv2.flip(hand_left, 1))
+            #     im2 = data_transform(hand_right)
+
+            #     im_array_norm = torch.cat((im1.unsqueeze(0), im2.unsqueeze(0)), 0)
+            #     im_array_norm = im_array_norm.to(device)
 
                 
-
-                im1 = data_transform(cv2.flip(hand_left, 1))
-                im2 = data_transform(hand_right)
-
-                im_array_norm = torch.cat((im1.unsqueeze(0), im2.unsqueeze(0)), 0)
-                im_array_norm = im_array_norm.to(device)
+            #     with torch.no_grad():
+            #         outputs, _ = model(im_array_norm)
+            #         _, preds = torch.max(outputs, 1)
 
                 
-                with torch.no_grad():
-                    outputs, _ = model(im_array_norm)
-                    _, preds = torch.max(outputs, 1)
+            #     if outputs[0][preds[0]] <= thresholds[preds[0]]:
+            #         preds[0] = 4
 
-                
-                if outputs[0][preds[0]] <= tresholds[preds[0]]:
-                    preds[0] = 4
+            #     if outputs[1][preds[1]] <= thresholds[preds[1]]:
+            #         preds[1] = 4
 
-                if outputs[1][preds[1]] <= tresholds[preds[1]]:
-                    preds[1] = 4
 
-                hand_left = cv2.putText(hand_left, gestures[preds[0]], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                font, (255, 0, 0), thickness, cv2.LINE_AA)
+            #     buffer_left.pop(0)
+            #     buffer_left.append(preds[0])
 
-                hand_right = cv2.putText(hand_right, gestures[preds[1]], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                        font, (255, 0, 0), thickness, cv2.LINE_AA)
+            #     buffer_right.pop(0)
+            #     buffer_right.append(preds[1])
+
+            #     pred_left = self.take_decision(buffer_left)
+            #     pred_right = self.take_decision(buffer_right)
+
+            hand_left = cv2.putText(hand_left, gestures[pred_left], org, cv2.FONT_HERSHEY_SIMPLEX,
+                            font, (255, 0, 0), thickness, cv2.LINE_AA)
+
+            hand_right = cv2.putText(hand_right, gestures[pred_right], org, cv2.FONT_HERSHEY_SIMPLEX,
+                                    font, (255, 0, 0), thickness, cv2.LINE_AA)
                 
 
             cv2.imshow('Original Image', cv2.cvtColor(keypoints_image, cv2.COLOR_BGR2RGB))
@@ -130,6 +161,74 @@ class HandGestureRecognition:
                 break
 
         cv2.destroyAllWindows()
+
+    
+    def take_decision(self, buffer, hand, flip = True):
+
+        if flip:
+            hand = cv2.flip(hand, 1)
+
+        im_norm = self.data_transform(hand).unsqueeze(0)
+        im_norm = im_norm.to(self.device)
+
+        with torch.no_grad():   
+            outputs, _ = self.model(im_norm)
+            _, preds = torch.max(outputs, 1)
+
+        if outputs[0][preds] <= self.thresholds[preds]:
+            preds = 4
+
+        buffer.pop(0)
+        buffer.append(preds)
+
+        pred = 4
+
+        buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+        
+        # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+
+        # positives_ratio = len(buffer_positives) / len(buffer)
+
+        # if all_equal and positives_ratio > 0.2:
+        #     pred = buffer_positives[0]
+
+        #TODO Put all this values in configuration files
+
+        if len(buffer_positives):
+            counter = 0
+            num = buffer_positives[0]
+        
+            for i in buffer_positives: # get most frequent classification
+                curr_frequency = buffer_positives.count(i)
+                if(curr_frequency> counter):
+                    counter = curr_frequency
+                    num = i
+
+            most_frequent_ratio = counter / len(buffer)
+            most_frequent_positives_ratio = counter / len(buffer_positives)
+
+            if most_frequent_ratio > 0.3 and most_frequent_positives_ratio > 0.8:
+
+                pred = num
+
+        return pred, buffer
+    
+    # def take_decision(buffer):
+
+    #     pred = 4
+
+    #     buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+        
+    #     all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+        
+    #     positives_ratio = len(buffer_positives) / len(buffer)
+
+    #     if all_equal and positives_ratio > 0.5:
+
+    #         pred = buffer_positives[0]
+
+    #     return pred
+
 
     def image_callback(self, msg):
         
