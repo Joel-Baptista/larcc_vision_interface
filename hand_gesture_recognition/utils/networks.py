@@ -66,14 +66,14 @@ class InceptionV3(nn.Module):
                 nn.Linear(256, 4),
                 )
         self.classifier.requires_grad_= True
-        print(self.classifier)
+        # print(self.classifier)
         # summary(self.classifier, (2048,))
         cnt = 0
         for child in self.model.children():
             cnt += 1
             if cnt in unfreeze_layers: 
-                print(child)
-                print("----------------")
+                # print(child)
+                # print("----------------")
                 for param in child.parameters():
                     param.requires_grad = True
         

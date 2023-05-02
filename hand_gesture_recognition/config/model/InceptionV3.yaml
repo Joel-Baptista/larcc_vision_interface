@@ -1,3 +1,6 @@
 model_name: "InceptionV3"
 con_features: 16
-tresholds: [3.11, 8.04, 8.15, 8.25]
+threshold_choice: 0
+n_frames: 10
+t_most_frequent_ratio: 0.5
+t_most_frequent_positives_ratio: 0.9

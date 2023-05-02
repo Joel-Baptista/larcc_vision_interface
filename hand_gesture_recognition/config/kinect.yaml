@@ -1,1 +1,3 @@
 image_topic: "/camera/rgb/image_raw"
+height: 100
+width: 100

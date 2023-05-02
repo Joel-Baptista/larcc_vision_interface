@@ -11,19 +11,22 @@ from hand_gesture_recognition.utils.networks import InceptionV3
 import torch
 import time
 from torchvision import transforms
+import yaml
+from yaml.loader import SafeLoader
+from vision_config.vision_definitions import ROOT_DIR
 
 
 class HandGestureRecognition:
-    def __init__(self) -> None:
+    def __init__(self, thresholds,**kargs) -> None:
 
         # Get initial data from rosparams
+        print(kargs)
 
-        # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
-        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
-        model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
-        con_features = rospy.get_param("/hgr/con_features", default=16)
-        self.thresholds = rospy.get_param("/hgr/tresholds", default=[0, 0, 0, 0])
-        
+        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
+        # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
+        roi_height = rospy.get_param("/hgr/height", default=100)
+        roi_width = rospy.get_param("/hgr/width", default=100)
+
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
         self.right_hand_points = (15, 17, 19, 21)
@@ -48,16 +51,17 @@ class HandGestureRecognition:
         thickness = 1
         font = 1
         gestures = ["A", "F", "L", "Y", "NONE"]
+        self.thresholds = thresholds
 
-        buffer_left = [4] * 5 # Initializes the buffer with 5 "NONE" gestures
-        buffer_right = [4] * 10
+        buffer_left = [4] * kargs["n_frames"] # Initializes the buffer with 5 "NONE" gestures
+        buffer_right = [4] * kargs["n_frames"]
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("Training device: ", self.device)
 
         self.model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=self.device,
-                    con_features=con_features)
-        self.model.name = model_name
+                    con_features=kargs["con_features"])
+        self.model.name = kargs["model_name"]
 
         trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{self.model.name}/{self.model.name}.pth', map_location=torch.device(self.device))
         self.model.load_state_dict(trained_weights)
@@ -88,57 +92,25 @@ class HandGestureRecognition:
 
         while True:
 
-            hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=50, y_lim=50)
+            hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
 
             if hand_left is not None:
                 
-                pred_left, buffer_left = self.take_decision(buffer_left, hand_left, flip=True)
+                pred_left, buffer_left = self.take_decision(buffer_left, hand_left, 
+                                                            kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], flip=True)
 
             else:
 
                 pred_left = 4
-                # hand_left = np.zeros((100, 100, 3))
 
             if hand_right is not None:
                 
-                pred_right, buffer_right = self.take_decision(buffer_right, hand_right, flip=False)
+                pred_right, buffer_right = self.take_decision(buffer_right, hand_right, 
+                                                              kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], flip=False)
 
             else:
 
                 pred_right = 4
-                # hand_right = np.zeros((100, 100, 3))
-
-
-
-            # if hand_left is not None and hand_right is not None:
-
-            #     im1 = data_transform(cv2.flip(hand_left, 1))
-            #     im2 = data_transform(hand_right)
-
-            #     im_array_norm = torch.cat((im1.unsqueeze(0), im2.unsqueeze(0)), 0)
-            #     im_array_norm = im_array_norm.to(device)
-
-                
-            #     with torch.no_grad():
-            #         outputs, _ = model(im_array_norm)
-            #         _, preds = torch.max(outputs, 1)
-
-                
-            #     if outputs[0][preds[0]] <= thresholds[preds[0]]:
-            #         preds[0] = 4
-
-            #     if outputs[1][preds[1]] <= thresholds[preds[1]]:
-            #         preds[1] = 4
-
-
-            #     buffer_left.pop(0)
-            #     buffer_left.append(preds[0])
-
-            #     buffer_right.pop(0)
-            #     buffer_right.append(preds[1])
-
-            #     pred_left = self.take_decision(buffer_left)
-            #     pred_right = self.take_decision(buffer_right)
 
             hand_left = cv2.putText(hand_left, gestures[pred_left], org, cv2.FONT_HERSHEY_SIMPLEX,
                             font, (255, 0, 0), thickness, cv2.LINE_AA)
@@ -163,7 +135,7 @@ class HandGestureRecognition:
         cv2.destroyAllWindows()
 
     
-    def take_decision(self, buffer, hand, flip = True):
+    def take_decision(self, buffer, hand, t_most_frequent_ratio, t_most_frequent_positives_ratio, flip = True):
 
         if flip:
             hand = cv2.flip(hand, 1)
@@ -185,14 +157,12 @@ class HandGestureRecognition:
 
         buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
         
-        # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+        all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
 
-        # positives_ratio = len(buffer_positives) / len(buffer)
+        positives_ratio = len(buffer_positives) / len(buffer)
 
-        # if all_equal and positives_ratio > 0.2:
-        #     pred = buffer_positives[0]
-
-        #TODO Put all this values in configuration files
+        if all_equal and positives_ratio > 0.3:
+            pred = buffer_positives[0]
 
         if len(buffer_positives):
             counter = 0
@@ -207,27 +177,12 @@ class HandGestureRecognition:
             most_frequent_ratio = counter / len(buffer)
             most_frequent_positives_ratio = counter / len(buffer_positives)
 
-            if most_frequent_ratio > 0.3 and most_frequent_positives_ratio > 0.8:
+            if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
 
                 pred = num
 
         return pred, buffer
-    
-    # def take_decision(buffer):
 
-    #     pred = 4
-
-    #     buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
-        
-    #     all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
-        
-    #     positives_ratio = len(buffer_positives) / len(buffer)
-
-    #     if all_equal and positives_ratio > 0.5:
-
-    #         pred = buffer_positives[0]
-
-    #     return pred
 
 
     def image_callback(self, msg):
@@ -311,7 +266,21 @@ class HandGestureRecognition:
 if __name__=="__main__":
 
     rospy.init_node("hand_gesture_recognition", anonymous=True)
-    hd = HandGestureRecognition()
+
+    model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
+
+    with open(f'{ROOT_DIR}/hand_gesture_recognition/config/model/{model_name}.yaml') as f:
+        data = yaml.load(f, Loader=SafeLoader)
+        print(data)
+
+    with open(f'{ROOT_DIR}/hand_gesture_recognition/config/model/thresholds.yaml') as f:
+        t = yaml.load(f, Loader=SafeLoader)
+        print(t)
+
+    thresholds = t[data["threshold_choice"]]
+    print(thresholds)
+
+    hd = HandGestureRecognition(thresholds, **data)
     try:
         rospy.spin()
     except KeyboardInterrupt:
