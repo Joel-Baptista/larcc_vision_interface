@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import rospy
-from sensor_msgs.msg import Image
+from hgr.msg import detected_hands
+from std_msgs.msg import Float32MultiArray
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import copy
-import mediapipe as mp
 import os
 from hand_gesture_recognition.utils.networks import InceptionV3
 import torch
@@ -14,6 +14,7 @@ from torchvision import transforms
 import yaml
 from yaml.loader import SafeLoader
 from vision_config.vision_definitions import ROOT_DIR
+from PIL import Image as PIL_Image
 
 
 class HandClassificationNode:
@@ -21,26 +22,13 @@ class HandClassificationNode:
        # Get initial data from rosparams
         print(kargs)
 
-        # Initializations for MediaPipe to detect keypoints
-        self.left_hand_points = (16, 18, 20, 22)
-        self.right_hand_points = (15, 17, 19, 21)
 
         self.bridge = CvBridge()
 
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(static_image_mode=False,
-                                      model_complexity=2,
-                                      enable_segmentation=False,
-                                      min_detection_confidence=0.7)
+        rospy.Subscriber("/hgr/hands", detected_hands, self.hands_callback)
+        pub_classification = rospy.Publisher("/hgr/classification", Float32MultiArray, queue_size=10)
 
-        rospy.Subscriber("/hgr/hand_left", Image, self.left_hand_callback)
-        rospy.Subscriber("/hgr/hand_right", Image, self.right_hand_callback)
-
-        self.cv_image = None
-        self.right_msg = None
-        self.left_msg = None
+        self.msg = None
         self.bridge = CvBridge()
 
         # Initialize variables for classification
@@ -75,32 +63,39 @@ class HandClassificationNode:
 
         print("Waiting!!")
         while True:
-            if self.cv_image is not None:
+            if self.msg is not None:
                 break
 
         try:
             while True:
-
-                left_frame = copy.deepcopy(cv2.cvtColor(self.left_hand, cv2.COLOR_BGR2RGB))
-                right_frame = copy.deepcopy(cv2.cvtColor(self.right_hand, cv2.COLOR_BGR2RGB))
-
-                if left_frame.shape != (100, 100, 3) or right_frame.shape != (100, 100, 3):
-                    continue
-
-                if left_frame is not None:
+                
+                try:
+                    if len(self.msg.hand_left.data) > 0:
+                        left_hand = self.bridge.imgmsg_to_cv2(self.msg.hand_left, "rgb8")
+                        left_frame = copy.deepcopy(cv2.cvtColor(left_hand, cv2.COLOR_BGR2RGB))
+                        pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
+                    else:
+                        pred_left = 4
+                        confid_left = 1.0
                     
-                    pred_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
+                    if len(self.msg.hand_right.data) > 0:
+                        right_hand = self.bridge.imgmsg_to_cv2(self.msg.hand_right, "rgb8")
+                        right_frame = copy.deepcopy(cv2.cvtColor(right_hand, cv2.COLOR_BGR2RGB))
+                        pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
+                    else:
+                        pred_right = 4 
+                        confid_right = 1.0
 
-                else:
+                    msg_classification = Float32MultiArray(data = [pred_left, confid_left, pred_right, confid_right])
+                    # msg_classification = Int32MultiArray(data = [[Int32(pred_left), Int32(confid_left)],[Int32(pred_right), Int32(confid_right)]])
+                    # msg_classification.layout.dim = [2, 2]
+                    # msg_classification.data = Int32([[pred_left, confid_left],[pred_right, confid_right]])
 
-                    pred_left = 4
+                    print(msg_classification)
+                    pub_classification.publish(msg_classification)
 
-                if left_frame:
-                    pred_right, buffer_right = self.take_decision(buffer_right, left_frame, cm, flip=False)
-
-                else:
-
-                    pred_right = 4
+                except KeyboardInterrupt:
+                   break
 
         except KeyboardInterrupt:
             print("Shutting down")
@@ -126,7 +121,7 @@ class HandClassificationNode:
 
         pred = 4
 
-        buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+        # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
 
         # Decision heuristic 1
 
@@ -174,24 +169,20 @@ class HandClassificationNode:
             confidance.append(prob / (cm[i][i] / 100))
 
         pred = probability.index(max(probability))
+        confid = confidance[pred]
+        # if flip:
+        #     print("--------------------------------------------")
+        #     print(f"Buffer: {buffer}")
+        #     print(f"probability: {probability}")
+        #     print(f"confidance: {confidance}")
+        #     print(f"Prediction: {pred}")
 
-        if flip:
-            print("--------------------------------------------")
-            print(f"Buffer: {buffer}")
-            print(f"probability: {probability}")
-            print(f"confidance: {confidance}")
-            print(f"Prediction: {pred}")
-
-        return pred, buffer
+        return pred, confid, buffer
 
 
-    def left_hand_callback(self, msg):
-        self.left_hand = self.bridge.imgmsg_to_cv2(msg, "rgb8")
-        self.left_msg = msg
+    def hands_callback(self, msg):
+        self.msg = msg   
 
-    def right_hand_callback(self, msg):
-        self.right_hand = self.bridge.imgmsg_to_cv2(msg, "rgb8")
-        self.right_msg = msg
 
 if __name__ == '__main__':
 

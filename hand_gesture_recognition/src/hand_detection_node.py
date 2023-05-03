@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import rospy
-from hand_gesture_recognition.msg import detected_hands
+from hgr.msg import detected_hands
 from sensor_msgs.msg import Image
+from std_msgs.msg import Int32
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import copy
+import time
 import mediapipe as mp
 from yaml.loader import SafeLoader
 from vision_config.vision_definitions import ROOT_DIR
@@ -50,14 +52,19 @@ class HandDetectionNode:
                 
         try:
             while True:
-
+                st = time.time()
                 image = copy.deepcopy(self.cv_image)
                 header = copy.deepcopy(self.image_header)
 
-                left_center, right_center, hand_right, hand_left, keypoints_image = self.find_hands(image, x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+                left_bounding, right_bounding, hand_right, hand_left, keypoints_image = self.find_hands(image, x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+
+                left_b = [Int32(i) for i in left_bounding]
+                right_b = [Int32(i) for i in right_bounding]
 
                 hands = detected_hands()
                 hands.header = header
+                hands.left_bounding_box = list(left_b)
+                hands.right_bounding_box = list(right_b)
 
                 if hand_left is not None:
                     # left_hand = cv2.resize(left_hand, (200, 200), interpolation=cv2.INTER_CUBIC)
@@ -66,9 +73,9 @@ class HandDetectionNode:
                 if hand_right is not None:
                     # right_hand = cv2.resize(right_hand, (200, 200), interpolation=cv2.INTER_CUBIC)
                     hands.hand_right = self.bridge.cv2_to_imgmsg(hand_right, "rgb8")
-
-                
+               
                 pub_hands.publish(hands)
+                print(time.time() - st)
 
         except KeyboardInterrupt:
             print("Shutting down")
@@ -81,8 +88,8 @@ class HandDetectionNode:
 
     def find_hands(self, input_image, x_lim, y_lim):
 
-        l_c = 0
-        r_c = 0
+        hand_left_bounding_box = [0, 0, 0, 0]
+        hand_right_bounding_box = [0, 0, 0, 0]
 
         h, w, _ = input_image.shape
         image = copy.deepcopy(input_image)
@@ -131,6 +138,10 @@ class HandDetectionNode:
             if r_c[1] < y_lim:
                 r_c[1] = y_lim
 
+
+            hand_left_bounding_box = [l_c[0]-x_lim, l_c[1]-y_lim, l_c[1]+y_lim, l_c[0]+x_lim]
+            hand_right_bounding_box = [l_c[0]-x_lim, r_c[1]-y_lim, l_c[0]+x_lim, l_c[1]+y_lim]
+            
             hand_left = input_image[l_c[1]-y_lim:l_c[1]+y_lim,
                                                         l_c[0]-x_lim:l_c[0]+x_lim]
 
@@ -152,7 +163,7 @@ class HandDetectionNode:
         if np.array(hand_right).shape != (2*x_lim, 2*y_lim, 3):
             hand_right = None
 
-        return l_c, r_c, hand_right, hand_left, annotated_image
+        return hand_left_bounding_box, hand_right_bounding_box, hand_right, hand_left, annotated_image
 
 
 if __name__ == '__main__':
