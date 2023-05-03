@@ -22,13 +22,16 @@ if __name__ == '__main__':
 
 
     labels = ["A", "F", "L", "Y", "NONE"]
-    tresholds = [0.41, 3.76, 5.81, 6.34] # F1 Optimized
-    # tresholds = [3.11, 8.04, 8.15, 8.25] # Precision Optimized
+    # tresholds = [0.41, 3.76, 5.81, 6.34] # F1 Optimized
+    tresholds = [3.11, 8.04, 8.15, 8.25] # Precision Optimized
 
     soft_tresholds = [-1] * 4
 
-    path_classes = f"/home/{os.environ.get('USER')}/results/InceptionV3/multi_user/test_results_InceptionV3.csv"
-    path_nones = f"/home/{os.environ.get('USER')}/results/InceptionV3/no_gesture/test_results_InceptionV3.csv"
+    # path_classes = f"/home/{os.environ.get('USER')}/results/InceptionV3/multi_user/test_results_InceptionV3.csv"
+    # path_nones = f"/home/{os.environ.get('USER')}/results/InceptionV3/no_gesture/test_results_InceptionV3.csv"
+
+    path_classes = "test_results1_InceptionV3.csv"
+    path_nones = "test_results2_InceptionV3.csv"
 
     df1 = pd.read_csv(path_nones)
     df2 = pd.read_csv(path_classes)

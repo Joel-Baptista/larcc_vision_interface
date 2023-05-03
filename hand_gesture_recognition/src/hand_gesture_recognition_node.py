@@ -17,7 +17,7 @@ from vision_config.vision_definitions import ROOT_DIR
 
 
 class HandGestureRecognition:
-    def __init__(self, thresholds,**kargs) -> None:
+    def __init__(self, thresholds, cm,**kargs) -> None:
 
         # Get initial data from rosparams
         print(kargs)
@@ -97,7 +97,7 @@ class HandGestureRecognition:
             if hand_left is not None:
                 
                 pred_left, buffer_left = self.take_decision(buffer_left, hand_left, 
-                                                            kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], flip=True)
+                                                            kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=True)
 
             else:
 
@@ -106,7 +106,7 @@ class HandGestureRecognition:
             if hand_right is not None:
                 
                 pred_right, buffer_right = self.take_decision(buffer_right, hand_right, 
-                                                              kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], flip=False)
+                                                              kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=False)
 
             else:
 
@@ -135,7 +135,7 @@ class HandGestureRecognition:
         cv2.destroyAllWindows()
 
     
-    def take_decision(self, buffer, hand, t_most_frequent_ratio, t_most_frequent_positives_ratio, flip = True):
+    def take_decision(self, buffer, hand, t_most_frequent_ratio, t_most_frequent_positives_ratio, cm, flip = True):
 
         if flip:
             hand = cv2.flip(hand, 1)
@@ -156,30 +156,58 @@ class HandGestureRecognition:
         pred = 4
 
         buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+
+        # Decision heuristic 1
+
+        # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+
+        # positives_ratio = len(buffer_positives) / len(buffer)
+
+        # if all_equal and positives_ratio > 0.3:
+        #     pred = buffer_positives[0]
+
+        # Decision heuristic 2
+
+        # if len(buffer_positives):
+        #     counter = 0
+        #     num = buffer_positives[0]
         
-        all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+        #     for i in buffer_positives: # get most frequent classification
+        #         curr_frequency = buffer_positives.count(i)
+        #         if(curr_frequency> counter):
+        #             counter = curr_frequency
+        #             num = i
 
-        positives_ratio = len(buffer_positives) / len(buffer)
+        #     most_frequent_ratio = counter / len(buffer)
+        #     most_frequent_positives_ratio = counter / len(buffer_positives)
 
-        if all_equal and positives_ratio > 0.3:
-            pred = buffer_positives[0]
+        #     if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
 
-        if len(buffer_positives):
-            counter = 0
-            num = buffer_positives[0]
-        
-            for i in buffer_positives: # get most frequent classification
-                curr_frequency = buffer_positives.count(i)
-                if(curr_frequency> counter):
-                    counter = curr_frequency
-                    num = i
+        #         pred = num
 
-            most_frequent_ratio = counter / len(buffer)
-            most_frequent_positives_ratio = counter / len(buffer_positives)
+        # Decision heuristic 3
 
-            if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
+        probability = []
+        confidance = []
 
-                pred = num
+        for i in range(0, 5):
+
+            prob = 1
+
+            for prediction in buffer:
+                prob = prob * cm[i][prediction] / 100
+
+            probability.append(prob)
+            confidance.append( prob / pow(cm[i][i] / 100, len(buffer)))
+
+        pred = probability.index(max(probability))
+
+
+        print("--------------------------------------------")
+        print(f"Buffer: {buffer}")
+        print(f"probability: {probability}")
+        print(f"confidance: {confidance}")
+        print(f"Prediction: {pred}")
 
         return pred, buffer
 
@@ -277,10 +305,12 @@ if __name__=="__main__":
         t = yaml.load(f, Loader=SafeLoader)
         print(t)
 
-    thresholds = t[data["threshold_choice"]]
+    thresholds = t["thresholds"][data["threshold_choice"]]
+    cm = t["confusion_matrix"][data["threshold_choice"]]
     print(thresholds)
+    print(cm)
 
-    hd = HandGestureRecognition(thresholds, **data)
+    hd = HandGestureRecognition(thresholds, cm, **data)
     try:
         rospy.spin()
     except KeyboardInterrupt:
