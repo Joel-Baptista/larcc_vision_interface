@@ -16,16 +16,10 @@ from yaml.loader import SafeLoader
 from vision_config.vision_definitions import ROOT_DIR
 
 
-class HandGestureRecognition:
+class HandClassificationNode:
     def __init__(self, thresholds, cm,**kargs) -> None:
-
-        # Get initial data from rosparams
+       # Get initial data from rosparams
         print(kargs)
-
-        image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
-        # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
-        roi_height = rospy.get_param("/hgr/height", default=100)
-        roi_width = rospy.get_param("/hgr/width", default=100)
 
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
@@ -41,16 +35,15 @@ class HandGestureRecognition:
                                       enable_segmentation=False,
                                       min_detection_confidence=0.7)
 
-        rospy.Subscriber(image_topic, Image, self.image_callback)
+        rospy.Subscriber("/hgr/hand_left", Image, self.left_hand_callback)
+        rospy.Subscriber("/hgr/hand_right", Image, self.right_hand_callback)
 
         self.cv_image = None
+        self.right_msg = None
+        self.left_msg = None
         self.bridge = CvBridge()
 
         # Initialize variables for classification
-        org = (0, 90)
-        thickness = 1
-        font = 1
-        gestures = ["A", "F", "L", "Y", "NONE"]
         self.thresholds = thresholds
 
         buffer_left = [4] * kargs["n_frames"] # Initializes the buffer with 5 "NONE" gestures
@@ -80,62 +73,40 @@ class HandGestureRecognition:
             transforms.Normalize(mean, std)
         ])
 
-        cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Left Hand", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Right Hand", cv2.WINDOW_NORMAL)
-
-
         print("Waiting!!")
         while True:
             if self.cv_image is not None:
                 break
 
-        while True:
+        try:
+            while True:
 
-            hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+                left_frame = copy.deepcopy(cv2.cvtColor(self.left_hand, cv2.COLOR_BGR2RGB))
+                right_frame = copy.deepcopy(cv2.cvtColor(self.right_hand, cv2.COLOR_BGR2RGB))
 
-            if hand_left is not None:
-                
-                pred_left, buffer_left = self.take_decision(buffer_left, hand_left, 
-                                                            kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=True)
+                if left_frame.shape != (100, 100, 3) or right_frame.shape != (100, 100, 3):
+                    continue
 
-            else:
+                if left_frame is not None:
+                    
+                    pred_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
 
-                pred_left = 4
+                else:
 
-            if hand_right is not None:
-                
-                pred_right, buffer_right = self.take_decision(buffer_right, hand_right, 
-                                                              kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=False)
+                    pred_left = 4
 
-            else:
+                if left_frame:
+                    pred_right, buffer_right = self.take_decision(buffer_right, left_frame, cm, flip=False)
 
-                pred_right = 4
+                else:
 
-            hand_left = cv2.putText(hand_left, gestures[pred_left], org, cv2.FONT_HERSHEY_SIMPLEX,
-                            font, (255, 0, 0), thickness, cv2.LINE_AA)
+                    pred_right = 4
 
-            hand_right = cv2.putText(hand_right, gestures[pred_right], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                    font, (255, 0, 0), thickness, cv2.LINE_AA)
-                
+        except KeyboardInterrupt:
+            print("Shutting down")
+            cv2.destroyAllWindows()
 
-            cv2.imshow('Original Image', cv2.cvtColor(keypoints_image, cv2.COLOR_BGR2RGB))
-
-            if hand_left is not None:
-                cv2.imshow('Left Hand',  cv2.cvtColor(hand_left, cv2.COLOR_BGR2RGB))
-            
-            if hand_right is not None:
-                cv2.imshow('Right Hand',  cv2.cvtColor(hand_right, cv2.COLOR_BGR2RGB))
-
-            key = cv2.waitKey(1)
-
-            if key == 113:
-                break
-
-        cv2.destroyAllWindows()
-
-    
-    def take_decision(self, buffer, hand, t_most_frequent_ratio, t_most_frequent_positives_ratio, cm, flip = True):
+    def take_decision(self, buffer, hand, cm, flip = True):
 
         if flip:
             hand = cv2.flip(hand, 1)
@@ -214,88 +185,17 @@ class HandGestureRecognition:
         return pred, buffer
 
 
+    def left_hand_callback(self, msg):
+        self.left_hand = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.left_msg = msg
 
-    def image_callback(self, msg):
-        
-        self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+    def right_hand_callback(self, msg):
+        self.right_hand = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.right_msg = msg
 
-    def find_hands(self, input_image, x_lim, y_lim):
+if __name__ == '__main__':
 
-        h, w, _ = input_image.shape
-        image = copy.deepcopy(input_image)
-
-        results = self.pose.process(image)
-
-        annotated_image = image.copy()
-
-        self.mp_drawing.draw_landmarks(
-            annotated_image,
-            results.pose_landmarks,
-            self.mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
-
-
-        x_left_points = []
-        x_right_points = []
-        y_left_points = []
-        y_right_points = []
-
-        h, w, _ = image.shape
-
-        hand_left = None
-        hand_right = None
-
-        if results.pose_landmarks:
-            for id_landmark, landmark in enumerate(results.pose_landmarks.landmark):
-                if id_landmark in self.left_hand_points:
-                    x_left_points.append(landmark.x)
-                    y_left_points.append(landmark.y)
-
-                if id_landmark in self.right_hand_points:
-                    x_right_points.append(landmark.x)
-                    y_right_points.append(landmark.y)
-
-            l_c = [int(np.mean(x_left_points) * w), int(np.mean(y_left_points) * h)]
-            r_c = [int(np.mean(x_right_points) * w), int(np.mean(y_right_points) * h)]
-
-
-            if l_c[0] < x_lim:
-                l_c[0] = x_lim
-            if l_c[1] < y_lim:
-                l_c[1] = y_lim
-            if r_c[0] < x_lim:
-                r_c[0] = x_lim
-            if r_c[1] < y_lim:
-                r_c[1] = y_lim
-
-            hand_left = input_image[l_c[1]-y_lim:l_c[1]+y_lim,
-                                                        l_c[0]-x_lim:l_c[0]+x_lim]
-
-            hand_right = input_image[r_c[1]-y_lim:r_c[1]+y_lim,
-                                                         r_c[0]-x_lim:r_c[0]+x_lim]
-
-            left_start_point = (l_c[0]-x_lim, l_c[1]-y_lim)
-            left_end_point = (l_c[0]+x_lim, l_c[1]+y_lim)
-
-            right_start_point = (r_c[0]-x_lim, r_c[1]-y_lim)
-            right_end_point = (r_c[0]+x_lim, r_c[1]+y_lim)
-
-            cv2.rectangle(annotated_image, left_start_point, left_end_point, (255, 0, 0), 2)
-            cv2.rectangle(annotated_image, right_start_point, right_end_point, (255, 0, 0), 2)
-
-        if np.array(hand_left).shape != (2*x_lim, 2*y_lim, 3):
-            hand_left = None
-
-        if np.array(hand_right).shape != (2*x_lim, 2*y_lim, 3):
-            hand_right = None
-
-        return hand_right, hand_left, annotated_image
-
-
-
-if __name__=="__main__":
-
-    rospy.init_node("hand_gesture_recognition", anonymous=True)
+    rospy.init_node("hand_classification", anonymous=True)
 
     model_name = rospy.get_param("/hgr/model_name", default="InceptionV3")
 
@@ -312,7 +212,9 @@ if __name__=="__main__":
     print(thresholds)
     print(cm)
 
-    hd = HandGestureRecognition(thresholds, cm, **data)
+
+    hc = HandClassificationNode(thresholds, cm, **data)
+
     try:
         rospy.spin()
     except KeyboardInterrupt:
