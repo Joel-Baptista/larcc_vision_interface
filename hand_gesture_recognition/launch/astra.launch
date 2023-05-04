@@ -3,12 +3,12 @@
     <arg name="model_name" default="InceptionV3"/>
 
     <group ns="hgr">
-        <rosparam file="$(find hand_gesture_recognition)/config/astra.yaml" />
+        <rosparam file="$(find hgr)/config/astra.yaml" />
     </group>
 
     <include file="$(find astra_camera)/launch/astra_pro.launch"/>
 
-    <include file="$(find hand_gesture_recognition)/launch/hgr.launch">
+    <include file="$(find hgr)/launch/hgr.launch">
         <arg name="model_name" value="$(arg model_name)"/>
     </include>
 

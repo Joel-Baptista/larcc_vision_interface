@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
+from hgr.msg import detected_hands
+from std_msgs.msg import Int32
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import copy
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import mediapipe as mp
 import os
 from hand_gesture_recognition.utils.networks import InceptionV3
@@ -21,6 +24,8 @@ class HandGestureRecognition:
 
         # Get initial data from rosparams
         print(kargs)
+
+        fps = rospy.get_param("/hgr/FPS/classification")
 
         image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
         # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
@@ -42,8 +47,11 @@ class HandGestureRecognition:
                                       min_detection_confidence=0.7)
 
         rospy.Subscriber(image_topic, Image, self.image_callback)
+        pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
+        pub_hands = rospy.Publisher("/hgr/hands", detected_hands, queue_size=10)
 
         self.cv_image = None
+        self.header = None
         self.bridge = CvBridge()
 
         # Initialize variables for classification
@@ -80,62 +88,69 @@ class HandGestureRecognition:
             transforms.Normalize(mean, std)
         ])
 
-        cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Left Hand", cv2.WINDOW_NORMAL)
-        cv2.namedWindow("Right Hand", cv2.WINDOW_NORMAL)
-
-
         print("Waiting!!")
         while True:
             if self.cv_image is not None:
                 break
 
-        while True:
+        while not rospy.is_shutdown():
 
-            hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+            st = time.time()
+            
+            header = self.header
+
+            left_bounding, right_bounding, hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+
+            left_b = [Int32(i) for i in left_bounding]
+            right_b = [Int32(i) for i in right_bounding]
+
+            hands = detected_hands()
+            hands.header = header
+            hands.left_bounding_box = list(left_b)
+            hands.right_bounding_box = list(right_b)
 
             if hand_left is not None:
-                
-                pred_left, buffer_left = self.take_decision(buffer_left, hand_left, 
-                                                            kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=True)
-
+                left_frame = copy.deepcopy(cv2.cvtColor(hand_left, cv2.COLOR_BGR2RGB))
+                pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
             else:
-
                 pred_left = 4
-
-            if hand_right is not None:
-                
-                pred_right, buffer_right = self.take_decision(buffer_right, hand_right, 
-                                                              kargs["t_most_frequent_ratio"], kargs["t_most_frequent_positives_ratio"], cm, flip=False)
-
-            else:
-
-                pred_right = 4
-
-            hand_left = cv2.putText(hand_left, gestures[pred_left], org, cv2.FONT_HERSHEY_SIMPLEX,
-                            font, (255, 0, 0), thickness, cv2.LINE_AA)
-
-            hand_right = cv2.putText(hand_right, gestures[pred_right], org, cv2.FONT_HERSHEY_SIMPLEX,
-                                    font, (255, 0, 0), thickness, cv2.LINE_AA)
-                
-
-            cv2.imshow('Original Image', cv2.cvtColor(keypoints_image, cv2.COLOR_BGR2RGB))
-
-            if hand_left is not None:
-                cv2.imshow('Left Hand',  cv2.cvtColor(hand_left, cv2.COLOR_BGR2RGB))
+                confid_left = 1.0
             
             if hand_right is not None:
-                cv2.imshow('Right Hand',  cv2.cvtColor(hand_right, cv2.COLOR_BGR2RGB))
+                right_frame = copy.deepcopy(cv2.cvtColor(hand_right, cv2.COLOR_BGR2RGB))
+                pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
+            else:
+                pred_right = 4 
+                confid_right = 1.0
+            
+            left = DiagnosticStatus(
+                name="left_hand",
+                values = [KeyValue(key="classification", value=str(pred_left)), KeyValue(key="confidance", value=str(confid_left))]
+            )
 
-            key = cv2.waitKey(1)
+            right = DiagnosticStatus(
+                name="right_hand",
+                values = [KeyValue(key="classification", value=str(pred_right)), KeyValue(key="confidance", value=str(confid_right))]
+            )
 
-            if key == 113:
-                break
+            msg_classification = DiagnosticArray(header = header, status=[left, right])
+            
+
+            while True:
+
+                if time.time() - st > 1/fps:
+                    break
+                
+                time.sleep(1 / (fps * 1000))
+
+            pub_hands.publish(hands)
+            pub_classification.publish(msg_classification)
+            print(f"CLASSIFICATION Running at {round(1 / (time.time() - st), 2)} FPS")
 
         cv2.destroyAllWindows()
 
     
-    def take_decision(self, buffer, hand, t_most_frequent_ratio, t_most_frequent_positives_ratio, cm, flip = True):
+    def take_decision(self, buffer, hand, cm, flip = True):
 
         if flip:
             hand = cv2.flip(hand, 1)
@@ -155,7 +170,7 @@ class HandGestureRecognition:
 
         pred = 4
 
-        buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+        # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
 
         # Decision heuristic 1
 
@@ -203,23 +218,28 @@ class HandGestureRecognition:
             confidance.append(prob / (cm[i][i] / 100))
 
         pred = probability.index(max(probability))
+        confid = confidance[pred]
+        # if flip:
+        #     print("--------------------------------------------")
+        #     print(f"Buffer: {buffer}")
+        #     print(f"probability: {probability}")
+        #     print(f"confidance: {confidance}")
+        #     print(f"Prediction: {pred}")
 
-        if flip:
-            print("--------------------------------------------")
-            print(f"Buffer: {buffer}")
-            print(f"probability: {probability}")
-            print(f"confidance: {confidance}")
-            print(f"Prediction: {pred}")
+        return pred, round(confid, 4), buffer
 
-        return pred, buffer
 
 
 
     def image_callback(self, msg):
         
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.header = msg.header
 
     def find_hands(self, input_image, x_lim, y_lim):
+
+        hand_left_bounding_box = [0, 0, 0, 0]
+        hand_right_bounding_box = [0, 0, 0, 0]
 
         h, w, _ = input_image.shape
         image = copy.deepcopy(input_image)
@@ -268,6 +288,10 @@ class HandGestureRecognition:
             if r_c[1] < y_lim:
                 r_c[1] = y_lim
 
+
+            hand_left_bounding_box = [l_c[0]-x_lim, l_c[1]-y_lim, l_c[0]+x_lim, l_c[1]+y_lim]
+            hand_right_bounding_box = [r_c[0]-x_lim, r_c[1]-y_lim, r_c[0]+x_lim, r_c[1]+y_lim]
+            
             hand_left = input_image[l_c[1]-y_lim:l_c[1]+y_lim,
                                                         l_c[0]-x_lim:l_c[0]+x_lim]
 
@@ -289,7 +313,7 @@ class HandGestureRecognition:
         if np.array(hand_right).shape != (2*x_lim, 2*y_lim, 3):
             hand_right = None
 
-        return hand_right, hand_left, annotated_image
+        return hand_left_bounding_box, hand_right_bounding_box, hand_right, hand_left, annotated_image
 
 
 

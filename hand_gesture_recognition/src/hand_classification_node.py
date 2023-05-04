@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 from hgr.msg import detected_hands
-from std_msgs.msg import Float32MultiArray
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -22,11 +22,12 @@ class HandClassificationNode:
        # Get initial data from rosparams
         print(kargs)
 
+        fps = rospy.get_param("/hgr/FPS/classification")
 
         self.bridge = CvBridge()
 
         rospy.Subscriber("/hgr/hands", detected_hands, self.hands_callback)
-        pub_classification = rospy.Publisher("/hgr/classification", Float32MultiArray, queue_size=10)
+        pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
 
         self.msg = None
         self.bridge = CvBridge()
@@ -67,11 +68,17 @@ class HandClassificationNode:
                 break
 
         try:
-            while True:
-                
+            while not rospy.is_shutdown():
+
                 try:
+
+                    st = time.time()
+                    header = self.msg.header
+                    im_left = copy.deepcopy(self.msg.hand_left)
+                    im_right = copy.deepcopy(self.msg.hand_right)
+
                     if len(self.msg.hand_left.data) > 0:
-                        left_hand = self.bridge.imgmsg_to_cv2(self.msg.hand_left, "rgb8")
+                        left_hand = self.bridge.imgmsg_to_cv2(im_left, "rgb8")
                         left_frame = copy.deepcopy(cv2.cvtColor(left_hand, cv2.COLOR_BGR2RGB))
                         pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
                     else:
@@ -79,20 +86,35 @@ class HandClassificationNode:
                         confid_left = 1.0
                     
                     if len(self.msg.hand_right.data) > 0:
-                        right_hand = self.bridge.imgmsg_to_cv2(self.msg.hand_right, "rgb8")
+                        right_hand = self.bridge.imgmsg_to_cv2(im_right, "rgb8")
                         right_frame = copy.deepcopy(cv2.cvtColor(right_hand, cv2.COLOR_BGR2RGB))
                         pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
                     else:
                         pred_right = 4 
                         confid_right = 1.0
+                    
+                    left = DiagnosticStatus(
+                        name="left_hand",
+                        values = [KeyValue(key="classification", value=str(pred_left)), KeyValue(key="confidance", value=str(confid_left))]
+                    )
 
-                    msg_classification = Float32MultiArray(data = [pred_left, confid_left, pred_right, confid_right])
-                    # msg_classification = Int32MultiArray(data = [[Int32(pred_left), Int32(confid_left)],[Int32(pred_right), Int32(confid_right)]])
-                    # msg_classification.layout.dim = [2, 2]
-                    # msg_classification.data = Int32([[pred_left, confid_left],[pred_right, confid_right]])
+                    right = DiagnosticStatus(
+                        name="right_hand",
+                        values = [KeyValue(key="classification", value=str(pred_right)), KeyValue(key="confidance", value=str(confid_right))]
+                    )
 
-                    print(msg_classification)
+                    msg_classification = DiagnosticArray(header = header, status=[left, right])
+                    
+
+                    while True:
+
+                        if time.time() - st > 1/fps:
+                            break
+                        
+                        time.sleep(1 / (fps * 1000))
+
                     pub_classification.publish(msg_classification)
+                    print(f"CLASSIFICATION Running at {round(1 / (time.time() - st), 2)} FPS")
 
                 except KeyboardInterrupt:
                    break
@@ -177,7 +199,7 @@ class HandClassificationNode:
         #     print(f"confidance: {confidance}")
         #     print(f"Prediction: {pred}")
 
-        return pred, confid, buffer
+        return pred, round(confid, 4), buffer
 
 
     def hands_callback(self, msg):

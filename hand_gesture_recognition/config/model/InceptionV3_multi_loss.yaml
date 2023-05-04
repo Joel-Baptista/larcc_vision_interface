@@ -1,3 +1,6 @@
 model_name: "InceptionV3_multi_loss"
 con_features: 64
 tresholds: [3, 15, 6, 10]
+FPS:
+  detection: 11
+  classification: 7

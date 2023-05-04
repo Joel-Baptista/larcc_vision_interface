@@ -3,12 +3,12 @@
     <arg name="model_name" default="InceptionV3"/>
 
     <group ns="hgr">
-        <rosparam file="$(find hand_gesture_recognition)/config/kinect.yaml" />
+        <rosparam file="$(find hgr)/config/kinect.yaml" />
     </group>
 
     <include file="$(find freenect_launch)/launch/freenect.launch"/>
 
-    <include file="$(find hand_gesture_recognition)/launch/hgr.launch">
+    <include file="$(find hgr)/launch/hgr.launch">
         <arg name="model_name" value="$(arg model_name)"/>
     </include>
     

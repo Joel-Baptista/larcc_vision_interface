@@ -20,7 +20,9 @@ class HandDetectionNode:
         image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
         # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")
         roi_height = rospy.get_param("/hgr/height", default=100)
-        roi_width = rospy.get_param("/hgr/width", default=100)
+        roi_width = rospy.get_param("/hgr/width", default=100)  
+
+        fps = rospy.get_param("/hgr/FPS/detection")
 
         # Initializations for MediaPipe to detect keypoints
         self.left_hand_points = (16, 18, 20, 22)
@@ -51,7 +53,7 @@ class HandDetectionNode:
                 break
                 
         try:
-            while True:
+            while not rospy.is_shutdown():
                 st = time.time()
                 image = copy.deepcopy(self.cv_image)
                 header = copy.deepcopy(self.image_header)
@@ -74,8 +76,16 @@ class HandDetectionNode:
                     # right_hand = cv2.resize(right_hand, (200, 200), interpolation=cv2.INTER_CUBIC)
                     hands.hand_right = self.bridge.cv2_to_imgmsg(hand_right, "rgb8")
                
+
+                while True:
+
+                    if time.time() - st > 1/fps:
+                        break
+                    
+                    time.sleep(1 / (fps * 1000))
+
                 pub_hands.publish(hands)
-                print(time.time() - st)
+                print(f"DETECTION Running at {round(1 / (time.time() - st), 2)} FPS")
 
         except KeyboardInterrupt:
             print("Shutting down")
