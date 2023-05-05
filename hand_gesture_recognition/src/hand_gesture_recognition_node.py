@@ -25,7 +25,7 @@ class HandGestureRecognition:
         # Get initial data from rosparams
         print(kargs)
 
-        fps = rospy.get_param("/hgr/FPS/classification")
+        fps = rospy.get_param("/hgr/FPS/classification", default=30)
 
         image_topic = rospy.get_param("/hgr/image_topic", default="/camera/color/image_raw")
         # image_topic = rospy.get_param("/hgr/image_topic", default="/camera/rgb/image_raw")

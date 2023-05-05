@@ -88,17 +88,17 @@ class ManagerDemo:
             label_left = ""
             label_right = ""
 
-            if self.left_class is not None:
+            if left_class is not None:
 
-                prediction_left = int(self.left_class[0].value)
-                confidance_left = float(self.left_class[1].value)
+                prediction_left = int(left_class[0].value)
+                confidance_left = float(left_class[1].value)
 
                 label_left = f"Label: {gestures[prediction_left]} - Confid:{round(confidance_left * 100, 2)}%"
 
-            if self.left_class is not None:
+            if right_class is not None:
 
-                prediction_right = int(self.right_class[0].value)
-                confidance_right = float(self.right_class[1].value)
+                prediction_right = int(right_class[0].value)
+                confidance_right = float(right_class[1].value)
 
                 label_right = f"Label: {gestures[prediction_right]} - Confid:{round(confidance_right * 100, 2)}%"
 
