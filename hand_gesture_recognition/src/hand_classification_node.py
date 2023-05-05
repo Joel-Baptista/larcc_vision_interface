@@ -13,6 +13,7 @@ import time
 from torchvision import transforms
 import yaml
 from yaml.loader import SafeLoader
+from hand_gesture_recognition.utils.hgr_utils import take_decision
 from vision_config.vision_definitions import ROOT_DIR
 from PIL import Image as PIL_Image
 
@@ -80,7 +81,12 @@ class HandClassificationNode:
                     if len(self.msg.hand_left.data) > 0:
                         left_hand = self.bridge.imgmsg_to_cv2(im_left, "rgb8")
                         left_frame = copy.deepcopy(cv2.cvtColor(left_hand, cv2.COLOR_BGR2RGB))
-                        pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
+                        # pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
+                        outputs, preds = self.predict(left_frame, flip=True)
+
+                        pred_left, confid_left, buffer_left = take_decision(outputs, preds, thresholds, buffer_left, cm, min_coef=kargs["min_coef"])
+
+
                     else:
                         pred_left = 4
                         confid_left = 1.0
@@ -88,7 +94,13 @@ class HandClassificationNode:
                     if len(self.msg.hand_right.data) > 0:
                         right_hand = self.bridge.imgmsg_to_cv2(im_right, "rgb8")
                         right_frame = copy.deepcopy(cv2.cvtColor(right_hand, cv2.COLOR_BGR2RGB))
-                        pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
+                        # pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
+                        
+                        outputs, preds = self.predict(right_frame, flip=False)
+
+                        pred_right, confid_right, buffer_right = take_decision(outputs, preds, thresholds, buffer_right, cm, min_coef=kargs["min_coef"])
+       
+                    
                     else:
                         pred_right = 4 
                         confid_right = 1.0
@@ -123,8 +135,12 @@ class HandClassificationNode:
             print("Shutting down")
             cv2.destroyAllWindows()
 
-    def take_decision(self, buffer, hand, cm, flip = True):
+    def hands_callback(self, msg):
+        self.msg = msg   
 
+
+    def predict(self, hand, flip):
+        
         if flip:
             hand = cv2.flip(hand, 1)
 
@@ -135,75 +151,85 @@ class HandClassificationNode:
             outputs, _ = self.model(im_norm)
             _, preds = torch.max(outputs, 1)
 
-        if outputs[0][preds] <= self.thresholds[preds]:
-            preds = 4
+        return outputs, preds
 
-        buffer.pop(0)
-        buffer.append(preds)
+    # def take_decision(self, buffer, hand, cm, flip = True):
 
-        pred = 4
+    #     if flip:
+    #         hand = cv2.flip(hand, 1)
 
-        # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+    #     im_norm = self.data_transform(hand).unsqueeze(0)
+    #     im_norm = im_norm.to(self.device)
 
-        # Decision heuristic 1
+    #     with torch.no_grad():   
+    #         outputs, _ = self.model(im_norm)
+    #         _, preds = torch.max(outputs, 1)
 
-        # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+    #     if outputs[0][preds] <= self.thresholds[preds]:
+    #         preds = 4
 
-        # positives_ratio = len(buffer_positives) / len(buffer)
+    #     buffer.pop(0)
+    #     buffer.append(preds)
 
-        # if all_equal and positives_ratio > 0.3:
-        #     pred = buffer_positives[0]
+    #     pred = 4
 
-        # Decision heuristic 2
+    #     # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
 
-        # if len(buffer_positives):
-        #     counter = 0
-        #     num = buffer_positives[0]
+    #     # Decision heuristic 1
+
+    #     # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+
+    #     # positives_ratio = len(buffer_positives) / len(buffer)
+
+    #     # if all_equal and positives_ratio > 0.3:
+    #     #     pred = buffer_positives[0]
+
+    #     # Decision heuristic 2
+
+    #     # if len(buffer_positives):
+    #     #     counter = 0
+    #     #     num = buffer_positives[0]
         
-        #     for i in buffer_positives: # get most frequent classification
-        #         curr_frequency = buffer_positives.count(i)
-        #         if(curr_frequency> counter):
-        #             counter = curr_frequency
-        #             num = i
+    #     #     for i in buffer_positives: # get most frequent classification
+    #     #         curr_frequency = buffer_positives.count(i)
+    #     #         if(curr_frequency> counter):
+    #     #             counter = curr_frequency
+    #     #             num = i
 
-        #     most_frequent_ratio = counter / len(buffer)
-        #     most_frequent_positives_ratio = counter / len(buffer_positives)
+    #     #     most_frequent_ratio = counter / len(buffer)
+    #     #     most_frequent_positives_ratio = counter / len(buffer_positives)
 
-        #     if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
+    #     #     if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
 
-        #         pred = num
+    #     #         pred = num
 
-        # Decision heuristic 3
+    #     # Decision heuristic 3
 
-        probability = []
-        confidance = []
+    #     probability = []
+    #     confidance = []
 
-        for i in range(0, 5):
+    #     for i in range(0, 5):
 
-            prob = 0
+    #         prob = 0
 
-            for prediction in buffer:
-                # prob = prob * (cm[i][prediction] / 100 + 0.01) # Multiplicate probabilities
+    #         for prediction in buffer:
+    #             # prob = prob * (cm[i][prediction] / 100 + 0.01) # Multiplicate probabilities
 
-                prob = prob + cm[i][prediction] / (100 * len(buffer)) # Average of probabilities
+    #             prob = prob + cm[i][prediction] / (100 * len(buffer)) # Average of probabilities
 
-            probability.append(prob)
-            confidance.append(prob / (cm[i][i] / 100))
+    #         probability.append(prob)
+    #         confidance.append(prob / (cm[i][i] / 100))
 
-        pred = probability.index(max(probability))
-        confid = confidance[pred]
-        # if flip:
-        #     print("--------------------------------------------")
-        #     print(f"Buffer: {buffer}")
-        #     print(f"probability: {probability}")
-        #     print(f"confidance: {confidance}")
-        #     print(f"Prediction: {pred}")
+    #     pred = probability.index(max(probability))
+    #     confid = confidance[pred]
+    #     # if flip:
+    #     #     print("--------------------------------------------")
+    #     #     print(f"Buffer: {buffer}")
+    #     #     print(f"probability: {probability}")
+    #     #     print(f"confidance: {confidance}")
+    #     #     print(f"Prediction: {pred}")
 
-        return pred, round(confid, 4), buffer
-
-
-    def hands_callback(self, msg):
-        self.msg = msg   
+    #     return pred, round(confid, 4), buffer
 
 
 if __name__ == '__main__':

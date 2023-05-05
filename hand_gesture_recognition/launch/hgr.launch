@@ -6,6 +6,6 @@
         <rosparam file="$(find hgr)/config/model/$(arg model_name).yaml" />
     </group>
 
-    <node pkg="hgr" name="hand_gesture_recognition" type="hand_gesture_recognition_node.py" />
+    <node pkg="hgr" name="hand_gesture_recognition" type="hand_gesture_recognition_node.py" output="screen" />
     
 </launch>

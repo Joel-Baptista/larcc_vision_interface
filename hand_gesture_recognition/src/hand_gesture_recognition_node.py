@@ -16,6 +16,7 @@ import time
 from torchvision import transforms
 import yaml
 from yaml.loader import SafeLoader
+from hand_gesture_recognition.utils.hgr_utils import find_hands, take_decision
 from vision_config.vision_definitions import ROOT_DIR
 
 
@@ -33,18 +34,30 @@ class HandGestureRecognition:
         roi_width = rospy.get_param("/hgr/width", default=100)
 
         # Initializations for MediaPipe to detect keypoints
-        self.left_hand_points = (16, 18, 20, 22)
-        self.right_hand_points = (15, 17, 19, 21)
+        # self.left_hand_points = (16, 18, 20, 22)
+        # self.right_hand_points = (15, 17, 19, 21)
 
-        self.bridge = CvBridge()
+        # self.bridge = CvBridge()
 
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(static_image_mode=False,
-                                      model_complexity=2,
-                                      enable_segmentation=False,
-                                      min_detection_confidence=0.7)
+        # self.mp_drawing = mp.solutions.drawing_utils
+        # self.mp_drawing_styles = mp.solutions.drawing_styles
+        # self.mp_pose = mp.solutions.pose
+        # self.pose = self.mp_pose.Pose(static_image_mode=False,
+        #                               model_complexity=2,
+        #                               enable_segmentation=False,
+        #                               min_detection_confidence=0.7)
+
+        mp_data = {}
+        mp_data["left_hand_points"] = (16, 18, 20, 22)
+        mp_data["right_hand_points"] = (15, 17, 19, 21)
+        mp_data["mp_drawing"] = mp.solutions.drawing_utils
+        mp_data["mp_drawing_styles"] = mp.solutions.drawing_styles
+        mp_data["mp_pose"] = mp.solutions.pose
+        mp_data["pose"] = mp_data["mp_pose"].Pose(static_image_mode=False,
+                                                model_complexity=2,
+                                                enable_segmentation=False,
+                                                min_detection_confidence=0.7)
+
 
         rospy.Subscriber(image_topic, Image, self.image_callback)
         pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
@@ -99,7 +112,11 @@ class HandGestureRecognition:
             
             header = self.header
 
-            left_bounding, right_bounding, hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+            # left_bounding, right_bounding, hand_right, hand_left, keypoints_image = self.find_hands(copy.deepcopy(self.cv_image), x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+
+            left_bounding, right_bounding, hand_right, hand_left, keypoints_image, mp_data["pose"] = find_hands(
+                copy.deepcopy(self.cv_image), mp_data, x_lim=int(roi_width / 2), y_lim=int(roi_height / 2))
+
 
             left_b = [Int32(i) for i in left_bounding]
             right_b = [Int32(i) for i in right_bounding]
@@ -111,14 +128,22 @@ class HandGestureRecognition:
 
             if hand_left is not None:
                 left_frame = copy.deepcopy(cv2.cvtColor(hand_left, cv2.COLOR_BGR2RGB))
-                pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
+
+                outputs, preds = self.predict(left_frame, flip=True)
+
+                pred_left, confid_left, buffer_left = take_decision(outputs, preds, thresholds, buffer_left, cm, min_coef=kargs["min_coef"])
+
             else:
                 pred_left = 4
                 confid_left = 1.0
             
             if hand_right is not None:
                 right_frame = copy.deepcopy(cv2.cvtColor(hand_right, cv2.COLOR_BGR2RGB))
-                pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
+                
+                outputs, preds = self.predict(right_frame, flip=False)
+
+                pred_right, confid_right, buffer_right = take_decision(outputs, preds, thresholds, buffer_right, cm, min_coef=kargs["min_coef"])
+            
             else:
                 pred_right = 4 
                 confid_right = 1.0
@@ -149,9 +174,14 @@ class HandGestureRecognition:
 
         cv2.destroyAllWindows()
 
-    
-    def take_decision(self, buffer, hand, cm, flip = True):
 
+    def image_callback(self, msg):
+        
+        self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
+        self.header = msg.header
+
+    def predict(self, hand, flip):
+        
         if flip:
             hand = cv2.flip(hand, 1)
 
@@ -162,158 +192,164 @@ class HandGestureRecognition:
             outputs, _ = self.model(im_norm)
             _, preds = torch.max(outputs, 1)
 
-        if outputs[0][preds] <= self.thresholds[preds]:
-            preds = 4
+        return outputs, preds
+    
+    # def take_decision(self, buffer, hand, cm, flip = True):
 
-        buffer.pop(0)
-        buffer.append(preds)
+    #     if flip:
+    #         hand = cv2.flip(hand, 1)
 
-        pred = 4
+    #     im_norm = self.data_transform(hand).unsqueeze(0)
+    #     im_norm = im_norm.to(self.device)
 
-        # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
+    #     with torch.no_grad():   
+    #         outputs, _ = self.model(im_norm)
+    #         _, preds = torch.max(outputs, 1)
 
-        # Decision heuristic 1
+    #     if outputs[0][preds] <= self.thresholds[preds]:
+    #         preds = 4
 
-        # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+    #     buffer.pop(0)
+    #     buffer.append(preds)
 
-        # positives_ratio = len(buffer_positives) / len(buffer)
+    #     pred = 4
 
-        # if all_equal and positives_ratio > 0.3:
-        #     pred = buffer_positives[0]
+    #     # buffer_positives = [i for i in buffer if i != 4] # Removes "None" class
 
-        # Decision heuristic 2
+    #     # Decision heuristic 1
 
-        # if len(buffer_positives):
-        #     counter = 0
-        #     num = buffer_positives[0]
+    #     # all_equal = all(element == buffer_positives[0] for element in buffer_positives) # Checks if all items are equal to each other
+
+    #     # positives_ratio = len(buffer_positives) / len(buffer)
+
+    #     # if all_equal and positives_ratio > 0.3:
+    #     #     pred = buffer_positives[0]
+
+    #     # Decision heuristic 2
+
+    #     # if len(buffer_positives):
+    #     #     counter = 0
+    #     #     num = buffer_positives[0]
         
-        #     for i in buffer_positives: # get most frequent classification
-        #         curr_frequency = buffer_positives.count(i)
-        #         if(curr_frequency> counter):
-        #             counter = curr_frequency
-        #             num = i
+    #     #     for i in buffer_positives: # get most frequent classification
+    #     #         curr_frequency = buffer_positives.count(i)
+    #     #         if(curr_frequency> counter):
+    #     #             counter = curr_frequency
+    #     #             num = i
 
-        #     most_frequent_ratio = counter / len(buffer)
-        #     most_frequent_positives_ratio = counter / len(buffer_positives)
+    #     #     most_frequent_ratio = counter / len(buffer)
+    #     #     most_frequent_positives_ratio = counter / len(buffer_positives)
 
-        #     if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
+    #     #     if most_frequent_ratio > t_most_frequent_ratio and most_frequent_positives_ratio > t_most_frequent_positives_ratio:
 
-        #         pred = num
+    #     #         pred = num
 
-        # Decision heuristic 3
+    #     # Decision heuristic 3
 
-        probability = []
-        confidance = []
+    #     probability = []
+    #     confidance = []
 
-        for i in range(0, 5):
+    #     for i in range(0, 5):
 
-            prob = 0
+    #         prob = 0
 
-            for prediction in buffer:
-                # prob = prob * (cm[i][prediction] / 100 + 0.01) # Multiplicate probabilities
+    #         for prediction in buffer:
+    #             # prob = prob * (cm[i][prediction] / 100 + 0.01) # Multiplicate probabilities
 
-                prob = prob + cm[i][prediction] / (100 * len(buffer)) # Average of probabilities
+    #             prob = prob + cm[i][prediction] / (100 * len(buffer)) # Average of probabilities
 
-            probability.append(prob)
-            confidance.append(prob / (cm[i][i] / 100))
+    #         probability.append(prob)
+    #         confidance.append(prob / (cm[i][i] / 100))
 
-        pred = probability.index(max(probability))
-        confid = confidance[pred]
-        # if flip:
-        #     print("--------------------------------------------")
-        #     print(f"Buffer: {buffer}")
-        #     print(f"probability: {probability}")
-        #     print(f"confidance: {confidance}")
-        #     print(f"Prediction: {pred}")
+    #     pred = probability.index(max(probability))
+    #     confid = confidance[pred]
+    #     # if flip:
+    #     #     print("--------------------------------------------")
+    #     #     print(f"Buffer: {buffer}")
+    #     #     print(f"probability: {probability}")
+    #     #     print(f"confidance: {confidance}")
+    #     #     print(f"Prediction: {pred}")
 
-        return pred, round(confid, 4), buffer
+    #     return pred, round(confid, 4), buffer
 
+    # def find_hands(self, input_image, x_lim, y_lim):
 
+    #     hand_left_bounding_box = [0, 0, 0, 0]
+    #     hand_right_bounding_box = [0, 0, 0, 0]
 
+    #     h, w, _ = input_image.shape
+    #     image = copy.deepcopy(input_image)
 
-    def image_callback(self, msg):
-        
-        self.cv_image = self.bridge.imgmsg_to_cv2(msg, "rgb8")
-        self.header = msg.header
+    #     results = self.pose.process(image)
 
-    def find_hands(self, input_image, x_lim, y_lim):
+    #     annotated_image = image.copy()
 
-        hand_left_bounding_box = [0, 0, 0, 0]
-        hand_right_bounding_box = [0, 0, 0, 0]
-
-        h, w, _ = input_image.shape
-        image = copy.deepcopy(input_image)
-
-        results = self.pose.process(image)
-
-        annotated_image = image.copy()
-
-        self.mp_drawing.draw_landmarks(
-            annotated_image,
-            results.pose_landmarks,
-            self.mp_pose.POSE_CONNECTIONS,
-            landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+    #     self.mp_drawing.draw_landmarks(
+    #         annotated_image,
+    #         results.pose_landmarks,
+    #         self.mp_pose.POSE_CONNECTIONS,
+    #         landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
 
 
-        x_left_points = []
-        x_right_points = []
-        y_left_points = []
-        y_right_points = []
+    #     x_left_points = []
+    #     x_right_points = []
+    #     y_left_points = []
+    #     y_right_points = []
 
-        h, w, _ = image.shape
+    #     h, w, _ = image.shape
 
-        hand_left = None
-        hand_right = None
+    #     hand_left = None
+    #     hand_right = None
 
-        if results.pose_landmarks:
-            for id_landmark, landmark in enumerate(results.pose_landmarks.landmark):
-                if id_landmark in self.left_hand_points:
-                    x_left_points.append(landmark.x)
-                    y_left_points.append(landmark.y)
+    #     if results.pose_landmarks:
+    #         for id_landmark, landmark in enumerate(results.pose_landmarks.landmark):
+    #             if id_landmark in self.left_hand_points:
+    #                 x_left_points.append(landmark.x)
+    #                 y_left_points.append(landmark.y)
 
-                if id_landmark in self.right_hand_points:
-                    x_right_points.append(landmark.x)
-                    y_right_points.append(landmark.y)
+    #             if id_landmark in self.right_hand_points:
+    #                 x_right_points.append(landmark.x)
+    #                 y_right_points.append(landmark.y)
 
-            l_c = [int(np.mean(x_left_points) * w), int(np.mean(y_left_points) * h)]
-            r_c = [int(np.mean(x_right_points) * w), int(np.mean(y_right_points) * h)]
-
-
-            if l_c[0] < x_lim:
-                l_c[0] = x_lim
-            if l_c[1] < y_lim:
-                l_c[1] = y_lim
-            if r_c[0] < x_lim:
-                r_c[0] = x_lim
-            if r_c[1] < y_lim:
-                r_c[1] = y_lim
+    #         l_c = [int(np.mean(x_left_points) * w), int(np.mean(y_left_points) * h)]
+    #         r_c = [int(np.mean(x_right_points) * w), int(np.mean(y_right_points) * h)]
 
 
-            hand_left_bounding_box = [l_c[0]-x_lim, l_c[1]-y_lim, l_c[0]+x_lim, l_c[1]+y_lim]
-            hand_right_bounding_box = [r_c[0]-x_lim, r_c[1]-y_lim, r_c[0]+x_lim, r_c[1]+y_lim]
+    #         if l_c[0] < x_lim:
+    #             l_c[0] = x_lim
+    #         if l_c[1] < y_lim:
+    #             l_c[1] = y_lim
+    #         if r_c[0] < x_lim:
+    #             r_c[0] = x_lim
+    #         if r_c[1] < y_lim:
+    #             r_c[1] = y_lim
+
+
+    #         hand_left_bounding_box = [l_c[0]-x_lim, l_c[1]-y_lim, l_c[0]+x_lim, l_c[1]+y_lim]
+    #         hand_right_bounding_box = [r_c[0]-x_lim, r_c[1]-y_lim, r_c[0]+x_lim, r_c[1]+y_lim]
             
-            hand_left = input_image[l_c[1]-y_lim:l_c[1]+y_lim,
-                                                        l_c[0]-x_lim:l_c[0]+x_lim]
+    #         hand_left = input_image[l_c[1]-y_lim:l_c[1]+y_lim,
+    #                                                     l_c[0]-x_lim:l_c[0]+x_lim]
 
-            hand_right = input_image[r_c[1]-y_lim:r_c[1]+y_lim,
-                                                         r_c[0]-x_lim:r_c[0]+x_lim]
+    #         hand_right = input_image[r_c[1]-y_lim:r_c[1]+y_lim,
+    #                                                      r_c[0]-x_lim:r_c[0]+x_lim]
 
-            left_start_point = (l_c[0]-x_lim, l_c[1]-y_lim)
-            left_end_point = (l_c[0]+x_lim, l_c[1]+y_lim)
+    #         left_start_point = (l_c[0]-x_lim, l_c[1]-y_lim)
+    #         left_end_point = (l_c[0]+x_lim, l_c[1]+y_lim)
 
-            right_start_point = (r_c[0]-x_lim, r_c[1]-y_lim)
-            right_end_point = (r_c[0]+x_lim, r_c[1]+y_lim)
+    #         right_start_point = (r_c[0]-x_lim, r_c[1]-y_lim)
+    #         right_end_point = (r_c[0]+x_lim, r_c[1]+y_lim)
 
-            cv2.rectangle(annotated_image, left_start_point, left_end_point, (255, 0, 0), 2)
-            cv2.rectangle(annotated_image, right_start_point, right_end_point, (255, 0, 0), 2)
+    #         cv2.rectangle(annotated_image, left_start_point, left_end_point, (255, 0, 0), 2)
+    #         cv2.rectangle(annotated_image, right_start_point, right_end_point, (255, 0, 0), 2)
 
-        if np.array(hand_left).shape != (2*x_lim, 2*y_lim, 3):
-            hand_left = None
+    #     if np.array(hand_left).shape != (2*x_lim, 2*y_lim, 3):
+    #         hand_left = None
 
-        if np.array(hand_right).shape != (2*x_lim, 2*y_lim, 3):
-            hand_right = None
+    #     if np.array(hand_right).shape != (2*x_lim, 2*y_lim, 3):
+    #         hand_right = None
 
-        return hand_left_bounding_box, hand_right_bounding_box, hand_right, hand_left, annotated_image
+    #     return hand_left_bounding_box, hand_right_bounding_box, hand_right, hand_left, annotated_image
 
 
 

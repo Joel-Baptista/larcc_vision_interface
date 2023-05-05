@@ -7,3 +7,4 @@ t_most_frequent_positives_ratio: 0.9
 FPS:
   detection: 11
   classification: 30
+min_coef: 0.5

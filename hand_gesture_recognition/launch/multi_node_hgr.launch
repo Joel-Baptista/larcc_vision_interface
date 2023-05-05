@@ -4,7 +4,7 @@
 
     <group ns="hgr">
         <rosparam file="$(find hgr)/config/astra.yaml" />
-        <rosparam param="model_name" value="$(arg model_name)"/>
+        <rosparam file="$(find hgr)/config/model/$(arg model_name).yaml" />
     </group>
 
     <!-- <include file="$(find astra_camera)/launch/astra_pro.launch"/> -->

@@ -64,7 +64,8 @@ class ManagerDemo:
                 break
 
         while not rospy.is_shutdown():
-            print(len(self.msg_image_buffer["timestamp"]))
+            # print(len(self.msg_image_buffer["timestamp"]))
+            st = time.time()
 
             msg_img, msg_hands, msg_class = self.choose_lastest_match(self.msg_image_buffer, self.msg_hands_buffer, self.msg_class_buffer)
             
@@ -111,7 +112,7 @@ class ManagerDemo:
                 cv2.rectangle(img, box_left_tl, box_left_br, (0, 255, 0), 2)
 
                 if box_left_tl[1] < 30 and box_left_tl[1] > 0:
-                    cv2.putText(img, label_left, (box_left_tl[0], box_left_br[1]+30), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), 2)
+                    cv2.putText(img, label_left, (box_left_tl[0], box_left_br[1]+25), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), 2)
                 else:   
                     cv2.putText(img, label_left, (box_left_tl[0], box_left_tl[1]-10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), 2)
             
@@ -125,7 +126,7 @@ class ManagerDemo:
                 cv2.rectangle(img, box_right_tl, box_right_br, (0, 0, 255), 2)
 
                 if box_right_tl[1] < 30 and box_right_tl[1] > 0:
-                    cv2.putText(img, label_right, ((box_right_tl[0], box_right_br[1]+30)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
+                    cv2.putText(img, label_right, ((box_right_tl[0], box_right_br[1]+25)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
                 else:   
                     cv2.putText(img, label_right, (box_right_tl[0], box_right_tl[1]-10), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 255), 2)
 
@@ -133,6 +134,8 @@ class ManagerDemo:
             cv2.imshow("Manager Demo", img)
 
             key = cv2.waitKey(1)
+
+            # print(f"VISUALIZATION Running at {round(1 / (time.time() - st), 2)} FPS")
 
             if key == ord("q"):
                 break
@@ -193,7 +196,7 @@ class ManagerDemo:
             idx2 = buffer2["timestamp"].index(latest_timestamp)
             idx3 = buffer3["timestamp"].index(latest_timestamp)
 
-            print(idx3)
+            # print(idx3)
 
             return buffer1["msg"][idx1], buffer2["msg"][idx2], buffer3["msg"][idx3]
             
