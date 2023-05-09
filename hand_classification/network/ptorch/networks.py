@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision.models import inception_v3, Inception_V3_Weights
 from torchsummary import summary
-from losses import SupConLoss, SimpleConLoss
+from hand_classification.network.ptorch.losses import SupConLoss, SimpleConLoss
 
 # class InceptionV3(nn.Module):
 #     def __init__(self, num_classes, learning_rate, device, temp= 0.07,unfreeze_layers = [], train_encoder = True,
