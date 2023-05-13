@@ -47,7 +47,7 @@ def buffer_analyses(buffer, cm, min_coef):
 
 def main():
     model_name = "InceptionV3"
-    is_sliding_ground_truth = False
+    is_sliding_ground_truth = True  
 
     n_frames = [x for x in range(1, 11)]
     print(n_frames)
@@ -78,7 +78,7 @@ def main():
     comb = (0, 0)
     count = 0
     fps_aquisition = 30
-    fps_test = 5
+    fps_test = 15
 
     jump = fps_test / fps_aquisition
     analyze_count=0
@@ -130,7 +130,7 @@ def main():
 
                     predictions.append(gestures[pred])
 
-            f1 = precision_score(ground_truths, predictions, average=None)
+            f1 = recall_score(ground_truths, predictions, average=None)
 
             f1_mean = np.mean(f1)
 
@@ -147,13 +147,13 @@ def main():
 
     df = pd.DataFrame(data=results)
 
-    print(df)
-    df = df.sort_values(by=['score'], ascending=False)
-    print(df)
-    if is_sliding_ground_truth: 
-        df.to_csv(f"{ROOT_DIR}/Dataset/results/{fps_test}_slide_{threshold_choice[data['threshold_choice']]}.csv")
-    else:
-        df.to_csv(f"{ROOT_DIR}/Dataset/results/{fps_test}_no_slide_{threshold_choice[data['threshold_choice']]}.csv")
+    # print(df)
+    # df = df.sort_values(by=['score'], ascending=False)
+    # print(df)
+    # if is_sliding_ground_truth: 
+    #     df.to_csv(f"{ROOT_DIR}/Dataset/results/{fps_test}_slide_{threshold_choice[data['threshold_choice']]}_rs.csv")
+    # else:
+    #     df.to_csv(f"{ROOT_DIR}/Dataset/results/{fps_test}_no_slide_{threshold_choice[data['threshold_choice']]}_rs.csv")
 
     print(f"Best Score is {f1_best} with n_frames {comb[0]} and min_coef {comb[1]}")
     print(analyze_count)

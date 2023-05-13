@@ -20,39 +20,49 @@ from PIL import Image as PIL_Image
 
 class HandClassificationNode:
     def __init__(self, thresholds, cm,**kargs) -> None:
-       # Get initial data from rosparams
+        # Print the keyword arguments passed to the constructor
         print(kargs)
 
+        # Get the frames per second for classification from a ROS parameter
         fps = rospy.get_param("/hgr/FPS/classification")
 
+        # Initialize a CvBridge instance for ROS image handling
         self.bridge = CvBridge()
 
+        # Subscribe to the "/hgr/hands" topic and set the callback to self.hands_callback
         rospy.Subscriber("/hgr/hands", detected_hands, self.hands_callback)
+
+        # Create a ROS publisher for the "/hgr/classification" topic
         pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
 
+        # Initialize variables for classification
         self.msg = None
-        self.bridge = CvBridge()
 
         # Initialize variables for classification
         self.thresholds = thresholds
 
-        buffer_left = [4] * kargs["n_frames"] # Initializes the buffer with 5 "NONE" gestures
+        # Initialize gesture buffers with n_frames "NONE" gestures
+        buffer_left = [4] * kargs["n_frames"]
         buffer_right = [4] * kargs["n_frames"]
 
+        # Check if CUDA is available and choose device accordingly
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         print("Training device: ", self.device)
 
+        # Initialize an InceptionV3 model for gesture classification
         self.model = InceptionV3(4, 0.0001, unfreeze_layers=list(np.arange(13, 20)), class_features=2048, device=self.device,
                     con_features=kargs["con_features"])
         self.model.name = kargs["model_name"]
 
+        # Load the trained weights for the model
         trained_weights = torch.load(f'{os.getenv("HOME")}/Datasets/ASL/kinect/results/{self.model.name}/{self.model.name}.pth', map_location=torch.device(self.device))
         self.model.load_state_dict(trained_weights)
 
+        # Put the model into evaluation mode and move it to the chosen device
         self.model.eval()
-
         self.model.to(self.device)
 
+         # Define a data transform for preprocessing the input images
         mean = np.array([0.5, 0.5, 0.5])
         std = np.array([0.25, 0.25, 0.25])
 
@@ -64,6 +74,7 @@ class HandClassificationNode:
         ])
 
         print("Waiting!!")
+        # Wait for self.msg to be initialized
         while True:
             if self.msg is not None:
                 break
@@ -81,7 +92,6 @@ class HandClassificationNode:
                     if len(self.msg.hand_left.data) > 0:
                         left_hand = self.bridge.imgmsg_to_cv2(im_left, "rgb8")
                         left_frame = copy.deepcopy(cv2.cvtColor(left_hand, cv2.COLOR_BGR2RGB))
-                        # pred_left, confid_left, buffer_left = self.take_decision(buffer_left, left_frame, cm, flip=True)
                         outputs, preds = self.predict(left_frame, flip=True)
 
                         pred_left, confid_left, buffer_left = take_decision(outputs, preds, thresholds, buffer_left, cm, min_coef=kargs["min_coef"])
@@ -94,8 +104,6 @@ class HandClassificationNode:
                     if len(self.msg.hand_right.data) > 0:
                         right_hand = self.bridge.imgmsg_to_cv2(im_right, "rgb8")
                         right_frame = copy.deepcopy(cv2.cvtColor(right_hand, cv2.COLOR_BGR2RGB))
-                        # pred_right, confid_right, buffer_right = self.take_decision(buffer_right, right_frame, cm, flip=False)
-                        
                         outputs, preds = self.predict(right_frame, flip=False)
 
                         pred_right, confid_right, buffer_right = take_decision(outputs, preds, thresholds, buffer_right, cm, min_coef=kargs["min_coef"])
