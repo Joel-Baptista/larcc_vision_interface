@@ -1,3 +1,11 @@
 image_topic: "/camera/color/image_raw"
 height: 100
 width: 100
+model_name: "InceptionV3"
+con_features: 16
+threshold_choice: 0 # 0 - precision; 1 - f1
+n_frames: 10
+FPS:
+  detection: 11
+  classification: 30
+min_coef: 0.5

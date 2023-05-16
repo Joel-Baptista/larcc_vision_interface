@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
-from hgr.msg import detected_hands
+from hgr.msg import HandsDetected, HandsClassified
 from std_msgs.msg import Int32
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import copy
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import mediapipe as mp
 import os
 from hand_gesture_recognition.utils.networks import InceptionV3
@@ -33,20 +32,6 @@ class HandGestureRecognition:
         roi_height = rospy.get_param("/hgr/height", default=100)
         roi_width = rospy.get_param("/hgr/width", default=100)
 
-        # Initializations for MediaPipe to detect keypoints
-        # self.left_hand_points = (16, 18, 20, 22)
-        # self.right_hand_points = (15, 17, 19, 21)
-
-        # self.bridge = CvBridge()
-
-        # self.mp_drawing = mp.solutions.drawing_utils
-        # self.mp_drawing_styles = mp.solutions.drawing_styles
-        # self.mp_pose = mp.solutions.pose
-        # self.pose = self.mp_pose.Pose(static_image_mode=False,
-        #                               model_complexity=2,
-        #                               enable_segmentation=False,
-        #                               min_detection_confidence=0.7)
-
         mp_data = {}
         mp_data["left_hand_points"] = (16, 18, 20, 22)
         mp_data["right_hand_points"] = (15, 17, 19, 21)
@@ -60,8 +45,8 @@ class HandGestureRecognition:
 
 
         rospy.Subscriber(image_topic, Image, self.image_callback)
-        pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
-        pub_hands = rospy.Publisher("/hgr/hands", detected_hands, queue_size=10)
+        pub_classification = rospy.Publisher("/hgr/classification", HandsClassified, queue_size=10)
+        pub_hands = rospy.Publisher("/hgr/hands", HandsDetected, queue_size=10)
 
         self.cv_image = None
         self.header = None
@@ -121,7 +106,7 @@ class HandGestureRecognition:
             left_b = [Int32(i) for i in left_bounding]
             right_b = [Int32(i) for i in right_bounding]
 
-            hands = detected_hands()
+            hands = HandsDetected()
             hands.header = header
             hands.left_bounding_box = list(left_b)
             hands.right_bounding_box = list(right_b)
@@ -148,18 +133,12 @@ class HandGestureRecognition:
                 pred_right = 4 
                 confid_right = 1.0
             
-            left = DiagnosticStatus(
-                name="left_hand",
-                values = [KeyValue(key="classification", value=str(pred_left)), KeyValue(key="confidance", value=str(confid_left))]
-            )
-
-            right = DiagnosticStatus(
-                name="right_hand",
-                values = [KeyValue(key="classification", value=str(pred_right)), KeyValue(key="confidance", value=str(confid_right))]
-            )
-
-            msg_classification = DiagnosticArray(header = header, status=[left, right])
-            
+            msg_classification = HandsClassified()
+            msg_classification.header = header
+            msg_classification.hand_right.data = gestures[pred_right]
+            msg_classification.hand_left.data = gestures[pred_left]
+            msg_classification.confid_right.data = confid_right
+            msg_classification.confid_left.data = confid_left
 
             while True:
 

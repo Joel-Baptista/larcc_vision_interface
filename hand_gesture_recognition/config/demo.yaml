@@ -1,4 +1,4 @@
-image_topic: "/camera/rgb/image_raw"
+image_topic: "/camera_4/color/image_raw"
 height: 100
 width: 100
 model_name: "InceptionV3"

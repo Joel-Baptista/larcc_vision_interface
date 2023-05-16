@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-from hgr.msg import detected_hands
+from hgr.msg import HandsDetected
 from sensor_msgs.msg import Image
 from std_msgs.msg import Int32
 import cv2
@@ -52,7 +52,7 @@ class HandDetectionNode:
 
 
         rospy.Subscriber(image_topic, Image, self.image_callback)
-        pub_hands = rospy.Publisher("/hgr/hands", detected_hands, queue_size=10)
+        pub_hands = rospy.Publisher("/hgr/hands", HandsDetected, queue_size=10)
 
         self.cv_image = None
         self.image_header = None
@@ -80,7 +80,7 @@ class HandDetectionNode:
                 left_b = [Int32(i) for i in left_bounding]
                 right_b = [Int32(i) for i in right_bounding]
 
-                hands = detected_hands()
+                hands = HandsDetected()
                 hands.header = header
                 hands.left_bounding_box = list(left_b)
                 hands.right_bounding_box = list(right_b)

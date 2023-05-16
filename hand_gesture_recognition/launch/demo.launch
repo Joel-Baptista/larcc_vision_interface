@@ -1,17 +1,13 @@
 <launch>
     
     <arg name="multi_node" default="false"/>
-    <arg name="model_name" default="InceptionV3"/>
-    <arg name="config" default="astra"/>
+    <arg name="config" default="demo"/>
     
-
     <group ns="hgr">
         <rosparam file="$(find hgr)/config/$(arg config).yaml" />
     </group>
-    
-    <include file="$(find astra_camera)/launch/include/astra_pro.launch"/>
 
-    <include file="$(find hgr)/launch/hgr.launch">
+    <include file="$(find hgr)/launch/include/hgr.launch">
         <arg name="multi_node" value="$(arg multi_node)"/>
     </include>
 

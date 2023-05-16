@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 import rospy
 from sensor_msgs.msg import Image
-from hgr.msg import detected_hands
+from hgr.msg import HandsDetected, HandsClassified
 from std_msgs.msg import Int32
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
 import copy
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import mediapipe as mp
 import os
 from hand_gesture_recognition.utils.networks import InceptionV3
@@ -37,8 +36,8 @@ class ManagerDemo:
         self.bridge = CvBridge()
 
         rospy.Subscriber(image_topic, Image, self.image_callback)
-        rospy.Subscriber("/hgr/hands", detected_hands, self.hands_callback)
-        rospy.Subscriber("/hgr/classification", DiagnosticArray, self.classification_callback)
+        rospy.Subscriber("/hgr/hands", HandsDetected, self.hands_callback)
+        rospy.Subscriber("/hgr/classification", HandsClassified, self.classification_callback)
 
         font_scale = 0.5
         gestures = ["A", "F", "L", "Y", "NONE"]
@@ -76,32 +75,16 @@ class ManagerDemo:
                 left_bounding = None
                 right_bounding = None
 
-            if msg_class is not None:
-                left_class = msg_class.status[0].values
-                right_class = msg_class.status[1].values
-            else:
-                left_class = None
-                right_class = None
-
-
             img = copy.deepcopy(cv2.cvtColor(self.bridge.imgmsg_to_cv2(msg_img, "rgb8"), cv2.COLOR_BGR2RGB))
 
             label_left = ""
             label_right = ""
 
-            if left_class is not None:
+            if msg_class is not None:
 
-                prediction_left = int(left_class[0].value)
-                confidance_left = float(left_class[1].value)
+                label_left = f"Label: {msg_class.hand_left.data} - Confid: {msg_class.confid_left.data}%"
 
-                label_left = f"Label: {gestures[prediction_left]} - Confid:{round(confidance_left * 100, 2)}%"
-
-            if right_class is not None:
-
-                prediction_right = int(right_class[0].value)
-                confidance_right = float(right_class[1].value)
-
-                label_right = f"Label: {gestures[prediction_right]} - Confid:{round(confidance_right * 100, 2)}%"
+                label_right = f"Label: {msg_class.hand_right.data} - Confid: {msg_class.confid_right.data}%"
 
             if left_bounding is not None:
                 box_left = left_bounding

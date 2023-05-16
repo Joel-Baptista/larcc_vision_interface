@@ -1,15 +1,16 @@
 <launch>
     
     <arg name="model_name" default="InceptionV3"/>
+    <arg name="config" default="kinect"/>
+    
 
     <group ns="hgr">
-        <rosparam file="$(find hgr)/config/kinect.yaml" />
+        <rosparam file="$(find hgr)/config/$(arg config).yaml" />
     </group>
-
-    <include file="$(find freenect_launch)/launch/freenect.launch"/>
-
-    <include file="$(find hgr)/launch/hgr.launch">
-        <arg name="model_name" value="$(arg model_name)"/>
-    </include>
     
+    <include file="$(find freenect_launch)/launch/include/freenect.launch"/>
+    
+    <include file="$(find hgr)/launch/hgr.launch">
+        <arg name="multi_node" value="$(arg multi_node)"/>
+    </include>
 </launch>

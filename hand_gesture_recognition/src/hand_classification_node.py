@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import rospy
-from hgr.msg import detected_hands
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
+from hgr.msg import HandsDetected, HandsClassified
 import cv2
 import numpy as np
 from cv_bridge import CvBridge
@@ -30,13 +29,14 @@ class HandClassificationNode:
         self.bridge = CvBridge()
 
         # Subscribe to the "/hgr/hands" topic and set the callback to self.hands_callback
-        rospy.Subscriber("/hgr/hands", detected_hands, self.hands_callback)
+        rospy.Subscriber("/hgr/hands", HandsDetected, self.hands_callback)
 
         # Create a ROS publisher for the "/hgr/classification" topic
-        pub_classification = rospy.Publisher("/hgr/classification", DiagnosticArray, queue_size=10)
+        pub_classification = rospy.Publisher("/hgr/classification", HandsClassified, queue_size=10)
 
         # Initialize variables for classification
         self.msg = None
+        gestures = ["A", "F", "L", "Y", "None"]
 
         # Initialize variables for classification
         self.thresholds = thresholds
@@ -113,19 +113,23 @@ class HandClassificationNode:
                         pred_right = 4 
                         confid_right = 1.0
                     
-                    left = DiagnosticStatus(
-                        name="left_hand",
-                        values = [KeyValue(key="classification", value=str(pred_left)), KeyValue(key="confidance", value=str(confid_left))]
-                    )
+                    # left = DiagnosticStatus(
+                    #     name="left_hand",
+                    #     values = [KeyValue(key="classification", value=str(pred_left)), KeyValue(key="confidance", value=str(confid_left))]
+                    # )
 
-                    right = DiagnosticStatus(
-                        name="right_hand",
-                        values = [KeyValue(key="classification", value=str(pred_right)), KeyValue(key="confidance", value=str(confid_right))]
-                    )
+                    # right = DiagnosticStatus(
+                    #     name="right_hand",
+                    #     values = [KeyValue(key="classification", value=str(pred_right)), KeyValue(key="confidance", value=str(confid_right))]
+                    # )
 
-                    msg_classification = DiagnosticArray(header = header, status=[left, right])
-                    
-
+                    # msg_classification = DiagnosticArray(header = header, status=[left, right])
+                    msg_classification = HandsClassified()
+                    msg_classification.header = header
+                    msg_classification.hand_right.data = gestures[pred_right]
+                    msg_classification.hand_left.data = gestures[pred_left]
+                    msg_classification.confid_right.data = round(confid_right * 100, 2) 
+                    msg_classification.confid_left.data = round(confid_left * 100, 2)
                     while True:
 
                         if time.time() - st > 1/fps:
